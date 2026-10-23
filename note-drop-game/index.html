@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Note Drop — Hand Gesture Game</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div><p class="eyebrow">HAND GESTURE MUSIC GAME</p><h1>Note Drop</h1></div>
+      <div class="scoreboard"><span>Score <b id="score">0</b></span><span>Best <b id="best">0</b></span></div>
+    </header>
+
+    <section class="layout">
+      <section class="game-card" aria-label="Game">
+        <div class="game-heading"><span>Catch the notes before they reach the line</span><span id="game-status">Ready</span></div>
+        <canvas id="game-canvas" width="900" height="560"></canvas>
+        <div class="game-actions"><button id="start-button" class="primary">Start game</button><span>Show the matching hand gesture to blast a note.</span></div>
+      </section>
+
+      <aside class="camera-card">
+        <div class="game-heading"><span>Camera</span><span id="gesture-status">Camera is off</span></div>
+        <div class="camera-view"><video id="camera-video" autoplay playsinline muted></video><div id="camera-placeholder">Enable camera to play<br><small>Your video stays in this browser.</small></div></div>
+        <button id="camera-button" class="secondary">Enable camera</button>
+        <div class="detected">Detected gesture: <b id="detected-gesture">None</b></div>
+        <p class="mapping-note">Demo mapping: raise only your index finger to play C and blast a C note. Add your full gesture mapping in <code>js/gestureMapping.js</code>.</p>
+      </aside>
+    </section>
+    <p class="footer-note">Use Chrome or Edge through VS Code Live Server. The camera needs permission and a local web server.</p>
+  </main>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
