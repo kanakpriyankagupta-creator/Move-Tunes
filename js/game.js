@@ -9,6 +9,12 @@ const bestText = document.querySelector("#best");
 const timerText = document.querySelector("#timer");
 const statusText = document.querySelector("#game-status");
 const startButton = document.querySelector("#start-button");
+const resultsScreen = document.querySelector("#results-screen");
+const resultsTitle = document.querySelector("#results-title");
+const resultsMessage = document.querySelector("#results-message");
+const finalScore = document.querySelector("#final-score");
+const finalTime = document.querySelector("#final-time");
+const finalBest = document.querySelector("#final-best");
 const WIDTH = canvas.width, HEIGHT = canvas.height, DEAD_LINE = HEIGHT - 62;
 
 // Difficulty grows with elapsed time (seconds).
@@ -17,6 +23,7 @@ const BASE_INTERVAL = 1.8, INTERVAL_DROP = 0.015, MIN_INTERVAL = 0.5;
 
 let fallingNotes = [], particles = [], rings = [], score = 0, best = Number(localStorage.getItem("noteDropBest") || 0);
 let running = false, lastFrame = 0, gameStart = 0, elapsed = 0, spawnTimer = 0, animationFrame = 0;
+let bestAtRunStart = best;
 bestText.textContent = best;
 
 const fmtTime = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -25,6 +32,8 @@ const currentInterval = () => Math.max(MIN_INTERVAL, BASE_INTERVAL - elapsed * I
 
 export function startGame() {
   cancelAnimationFrame(animationFrame);
+  resultsScreen.hidden = true;
+  bestAtRunStart = best;
   fallingNotes = []; particles = []; rings = []; score = 0; elapsed = 0; spawnTimer = 0.5;
   scoreText.textContent = "0"; timerText.textContent = "0:00"; statusText.textContent = "Playing";
   startButton.textContent = "Restart";
@@ -82,13 +91,46 @@ function update(time) {
     if (p.life <= 0) particles.splice(i, 1);
   }
   if (fallingNotes.some(note => note.y + note.radius >= DEAD_LINE)) {
-    draw(); running = false;
-    statusText.textContent = "Game over"; startButton.textContent = "Play again";
-    recordGame(score, elapsed); renderProgress();
+    draw(); finishGame();
     return;
   }
   draw(); animationFrame = requestAnimationFrame(update);
 }
+
+function finishGame() {
+  running = false;
+  const newPersonalBest = score > bestAtRunStart;
+  if (newPersonalBest) {
+    best = score;
+    bestText.textContent = String(best);
+    try { localStorage.setItem("noteDropBest", String(best)); } catch {}
+
+    // DATABASE INTEGRATION (enable once your backend is ready):
+    // Send an authenticated user's score only after it beats their saved best.
+    // The backend should also compare scores atomically before updating the user's record.
+    // Example endpoint/payload; replace with your real URL and auth token handling:
+    // fetch("https://your-api.example.com/users/me/best-score", {
+    //   method: "PUT",
+    //   headers: { "Content-Type": "application/json", "Authorization": `Bearer ${userToken}` },
+    //   body: JSON.stringify({ bestScore: score })
+    // }).catch(error => console.error("Could not save best score", error));
+  }
+
+  statusText.textContent = "Run complete";
+  startButton.textContent = "Play again";
+  finalScore.textContent = String(score);
+  finalTime.textContent = fmtTime(elapsed);
+  finalBest.textContent = String(best);
+  resultsTitle.textContent = newPersonalBest ? "New personal best!" : "Nice run!";
+  resultsMessage.textContent = newPersonalBest
+    ? "You set a new high score. Keep that streak going!"
+    : "The notes caught up this time. Ready for another run?";
+  resultsScreen.hidden = false;
+  recordGame(score, elapsed);
+  renderProgress();
+}
+
+document.querySelector("#results-play-again").addEventListener("click", startGame);
 
 // ---------- space visuals ----------
 const stars = Array.from({ length: 110 }, () => ({
