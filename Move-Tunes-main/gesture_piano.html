@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MoveTune</title>
+<style>
+  /* FIGMA HANDOFF: tokens below use Figma-Variables-style names (color/*, radius/*, space/*).
+     Restyle by overriding them in :root. Every component carries data-component="...".
+     Text is filled into any element with data-gp-bind="level|points|combo|streak|status|note|chordNow|leftTxt|rightTxt|last".
+     Any element with data-gp-action="start|free|learn|game|lib|record|quit|again|next|menu" becomes that button.
+     JS events and controls: window.GesturePiano (see bottom of file). */
+  :root {
+    --color-bg: #10303a; --color-panel: #17414d; --color-panel-2: #1d5260;
+    --color-text: #f4efe2; --color-muted: #9fc3c9; --color-accent: #e85d75;
+    --color-note-c: #ef476f; --color-note-d: #ff9f1c; --color-note-e: #06d6a0; --color-note-f: #38a8e0; --color-note-g: #9b7be8; --color-note-a: #f15bb5; --color-note-b: #00bbf9;
+    --color-good: #06d6a0; --color-bad: #ef476f; --color-gold: #ffd166;
+    --radius-card: 12px; --radius-btn: 10px; --space-page: 24px;
+    --font-ui: "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--color-bg); color: var(--color-text); font-family: var(--font-ui); }
+  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px var(--space-page); }
+  h1 { margin: 0; font-size: 30px; letter-spacing: -.5px; }
+  h2 { margin: 6px 0; font-size: 32px; color: var(--color-muted); font-weight: 600; }
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; }
+  .stat { background: var(--color-panel); border-radius: 10px; padding: 8px 14px; min-width: 96px; }
+  .stat b { display: block; font-size: 22px; }
+  .stat span { font-size: 13px; color: var(--color-muted); }
+  #xp { height: 4px; background: #0b2229; border-radius: 4px; margin-top: 4px; overflow: hidden; }
+  #xpFill { height: 100%; width: 0; background: var(--color-gold); }
+ 
+  /* NEW: left-hand chord bar, big and readable */
+  .bar-title { margin: 0 0 8px; padding: 0 var(--space-page); font-size: 20px; font-weight: 700; }
+  #chords { display: flex; gap: 12px; flex-wrap: wrap; padding: 0 var(--space-page) 14px; }
+  .chip { background: var(--color-panel); border-radius: 14px; padding: 12px 18px; display: flex; align-items: center; gap: 14px; border: 3px solid transparent; }
+  .chip b { font-size: 38px; min-width: 52px; line-height: 1; }
+  .chip small { color: var(--color-text); font-size: 17px; font-weight: 600; }
+  .chip .hand { width: 46px; height: 55px; flex: none; }
+  .chip.cur { border-color: var(--color-good); }
+  .chip.target { background: var(--color-accent); border-color: var(--color-text); }
+  .chip.big { padding: 14px 20px; } .chip.big b { font-size: 46px; } .chip.big small { font-size: 18px; } .chip.big .hand { width: 62px; height: 74px; }
+  .fi i { display: inline-block; width: 5px; height: 11px; margin: 0 1px; background: #0b2229; border-radius: 2px; vertical-align: bottom; }
+  .fi i.up { height: 20px; background: var(--color-gold); }
+ 
+  /* NEW (Figma "Bottom square row"): 12 note squares sit along the bottom of the camera */
+  #keys { position: absolute; left: 0; right: 0; bottom: 8px; z-index: 3; display: flex; gap: clamp(3px, 1.2%, 25px); padding: 0 12px; }
+  .key { flex: 1 1 0; min-width: 0; height: 62px; border-radius: 14px; background: #31111D; color: #fff;
+    display: flex; align-items: center; justify-content: center; border-bottom: 5px solid var(--kc);
+    font-family: 'Inria Sans', var(--font-ui); font-weight: 700; font-size: 14px; line-height: 17px; transition: transform .08s, background .08s; }
+  .key.sharp { background: #1f0a13; }
+  .key.target { background: var(--kc); color: #10303a; box-shadow: 0 0 0 3px var(--color-text); }
+  .key.down { transform: translateY(5px); background: var(--kc); color: #10303a; }
+ 
+  main { display: flex; flex-wrap: wrap; gap: 20px; padding: 0 var(--space-page) 32px; align-items: flex-start; }
+  /* NEW: wider camera stage (Figma 968 x 480) with the start card and output waveform */
+  #stage { position: relative; flex: 1 1 560px; min-width: 0; max-width: 968px; aspect-ratio: 968 / 480; background: #000; border-radius: var(--radius-card); overflow: hidden; }
+  #stage video, #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  #app #startBtn { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 4; width: 312px; max-width: 80%; height: 106px;
+    background: #633B48; border-radius: 14px; color: #fff; font-family: 'Inria Sans', var(--font-ui); font-weight: 700; font-size: 14px; line-height: 17px; text-transform: uppercase; }
+  #app #startBtn:hover { background: #7a4a59; }
+  #outWave { position: absolute; right: 16px; bottom: 82px; z-index: 3; display: flex; align-items: flex-end; gap: 4px; height: 14px; }
+  #outWave i { width: 3px; height: 4px; background: var(--color-text); border-radius: 2px; opacity: .7; }
+  #outWave.on i { animation: bounce .45s ease-in-out infinite alternate; }
+  #outWave.on i:nth-child(2) { animation-delay: .1s; } #outWave.on i:nth-child(3) { animation-delay: .2s; } #outWave.on i:nth-child(4) { animation-delay: .3s; }
+  @keyframes bounce { to { height: 14px; } }
+  #recBadge { position: absolute; top: 10px; left: 10px; background: var(--color-bad); border-radius: 20px; padding: 3px 12px; font-weight: 700; font-size: 13px; }
+  #flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .35s; }
+  #flash.good { background: rgba(6,214,160,.28); opacity: 1; transition: none; }
+  #flash.bad { background: rgba(239,71,111,.35); opacity: 1; transition: none; }
+  #pops { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .pop { position: absolute; left: 50%; top: 60%; font-size: 34px; font-weight: 800; text-align: center; transform: translateX(-50%); animation: rise 1s ease-out forwards; text-shadow: 0 2px 8px rgba(0,0,0,.6); }
+  .pop.good { color: var(--color-gold); } .pop.bad { color: var(--color-bad); }
+  @keyframes rise { to { transform: translate(-50%, -90px); opacity: 0; } }
+ 
+  #panel { width: 440px; max-width: 100%; display: flex; flex-direction: column; gap: 12px; }
+  button, select { font: inherit; font-weight: 600; color: var(--color-text); background: var(--color-panel-2); border: 0; border-radius: var(--radius-btn); padding: 11px 16px; cursor: pointer; }
+  button:hover { background: #26707f; }
+  :focus-visible { outline: 3px solid var(--color-gold); outline-offset: 2px; }
+  button.primary { background: var(--color-accent); } button.primary:hover { background: #f06b83; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .tabs { display: flex; gap: 6px; } .tabs button { flex: 1; padding: 11px 6px; }
+  .tabs button[aria-selected="true"] { background: var(--color-text); color: #10303a; }
+  .card { background: var(--color-panel); border-radius: var(--radius-card); padding: 14px 16px; }
+  .muted { color: var(--color-muted); font-size: 14px; }
+  .split { display: flex; gap: 16px; justify-content: space-between; align-items: center; }
+  .big { font-size: 56px; font-weight: 800; line-height: 1; margin: 4px 0; }
+  #target { font-size: 64px; font-weight: 800; line-height: 1; }
+  .how { font-size: 17px; margin: 4px 0; }
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .songrow { display: flex; gap: 6px; }
+  .song { flex: 1; display: flex; justify-content: space-between; align-items: center; text-align: left; gap: 8px; }
+  .song.locked { opacity: .45; }
+  .song .meta { color: var(--color-gold); font-size: 14px; white-space: nowrap; }
+  .fav { width: 48px; font-size: 20px; padding: 0; } .fav[aria-pressed="true"] { color: var(--color-gold); }
+  .rec { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--color-panel-2); border-radius: var(--radius-btn); padding: 10px 12px; }
+  .rec button { padding: 7px 12px; }
+  #barWrap { height: 10px; background: #0b2229; border-radius: 6px; overflow: hidden; margin: 8px 0; }
+  #bar { height: 100%; width: 0; background: var(--color-good); transition: width .25s; }
+  #overlay { position: fixed; inset: 0; background: rgba(8,24,29,.85); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 5; }
+  #overlay.show { display: flex; }
+  #result { background: var(--color-panel); border-radius: 16px; padding: 28px; width: 380px; max-width: 100%; text-align: center; }
+  #stars { font-size: 48px; color: var(--color-gold); letter-spacing: 6px; }
+  #resultScore { font-size: 40px; font-weight: 800; }
+  .row { display: flex; gap: 8px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
+  dialog { background: var(--color-panel); color: var(--color-text); border: 0; border-radius: 16px; padding: 16px; max-width: 94vw; }
+  dialog::backdrop { background: rgba(8,24,29,.85); } dialog video { max-width: 100%; max-height: 70vh; display: block; margin-bottom: 10px; }
+  [hidden] { display: none !important; }
+  /* ----- Top navigation bar ----- */
+.site-nav {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 24px;
+  background: var(--color-bg);
+  border-bottom: 1px solid rgba(244, 239, 226, .12);
+}
+.site-nav a { color: var(--color-text); text-decoration: none; }
+.site-nav .brand { font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
+.nav-links { display: flex; gap: 6px; flex-wrap: wrap; }
+.nav-links a {
+  padding: 8px 14px; border-radius: var(--radius-btn);
+  color: var(--color-muted); font-weight: 600;
+}
+.nav-links a:hover { background: var(--color-panel); color: var(--color-text); }
+.nav-links a.active { background: var(--color-text); color: var(--color-bg); }
+.nav-profile { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--color-accent); color: #fff;
+  display: grid; place-items: center; font-weight: 800;
+}
+  #gameScreen iframe {
+  width: 100%;
+  height: calc(100vh - 70px); /* 70px = roughly your nav bar height; adjust if needed */
+  border: 0;
+  display: block;
+}
+  /* NEW: gesture map (hand pictures) and the two big gesture cards in songs */
+  .gmap { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; margin-top: 8px; }
+  .gm { background: var(--color-panel-2); border-radius: 12px; padding: 8px 6px; text-align: center; border-bottom: 4px solid var(--kc, var(--color-good)); }
+  .gm svg { width: 54px; height: 65px; }
+  .gm b { display: block; font-size: 22px; }
+  .gm small { display: block; color: var(--color-muted); font-size: 12px; line-height: 1.2; min-height: 29px; }
+  .gm.target { background: var(--color-accent); } .gm.target small { color: #fff; }
+  .gpair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+  .gcard { background: var(--color-panel-2); border-radius: 14px; padding: 12px; text-align: center; }
+  .gcard.left { border-top: 5px solid var(--color-good); } .gcard.right { border-top: 5px solid var(--color-accent); }
+  .gwho { font-size: 15px; color: var(--color-muted); font-weight: 600; }
+  .gname, .gcard #target { font-size: 56px; font-weight: 800; line-height: 1.1; }
+  .gcard svg { width: 100px; height: 120px; }
+  .gtxt { font-size: 17px; font-weight: 600; }
+  @media (prefers-reduced-motion: reduce) { .pop { animation: none; opacity: 1; } .key, #bar { transition: none; } #outWave.on i { animation: none; } }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Inria+Sans:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="signin">
+ <div class="signin-page">
+ 
+  <section class="intro">
+    <p class="tech-label">GESTURE PIANO</p>
+    <h1 class="promise">Music is in your hands.</h1>
+    <p class="intro-text">Learn, Play, Score.</p>
+ 
+    <div class="artwork">
+      <div class="orbit o1"></div>
+      <div class="orbit o2"></div>
+      <div class="orbit o3"></div>
+      <div class="orbit o4"></div>
+      <div class="orbit o5"></div>
+      <div class="orbit o6"></div>
+      <div class="orbit o7"></div>
+      <div class="gesture"><img src="images/hand.svg" alt=""></div>
+      <div class="tone-chip">
+        <span class="tone-note">C</span>
+        <span class="tech-label">TONE</span>
+      </div>
+      <div class="wave-group">
+        <div class="mini-wave" id="miniWave"></div>
+        <p class="art-caption">MOVEMENT -> FREQUENCY -> FEELING</p>
+      </div>
+    </div>
+ 
+    <div class="qualities">
+      <p class="tech-label grey">NO INSTRUMENT NEEDED</p>
+      <p class="tech-label grey">JUST YOU AND THE SCREEN</p>
+    </div>
+  </section>
+ 
+  <section class="login">
+    <div class="welcome">
+      <p class="tech-label">Your Studio Awaits</p>
+      <h2 class="welcome-title">Sign in!</h2>
+      <p class="welcome-message">We knew you'd be back.</p>
+    </div>
+ 
+    <form id="signinForm">
+  <div class="credentials">
+    <!-- 1. Username Field (Kept exactly as you had it) -->
+    <div class="field" id="usernameField" hidden>
+      <label for="username">Username</label>
+      <div class="input-box">
+        <input id="username" type="text" placeholder="yourname" autocomplete="username" required>
+      </div>
+    </div>
+
+    <!-- 2. Email Field (ADDED: Required by Supabase) -->
+    <div class="field">
+      <label for="email">Email</label>
+      <div class="input-box">
+        <input id="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+      </div>
+    </div>
+
+    <!-- 3. Password Field (Kept exactly as you had it) -->
+    <div class="field">
+      <label for="password">Password</label>
+      <div class="input-box">
+        <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" minlength="6" required>
+        <button type="button" class="eye" id="eyeBtn" aria-label="Show or hide password">
+          
+          <img src="images/eye.svg" alt="">
+        </button>
+      </div>
+    </div>
+
+    <div class="prefs">
+      <label class="remember"><input type="checkbox" checked> Remember me</label>
+      <a href="#" class="reset">Reset password</a>
+    </div>
+  </div>
+
+  <button type="submit" class="button button-primary">
+    <img src="images/arrow-right-dark.svg" alt="" class="icon-18">
+    <span>Enter your studio</span>
+  </button>
+
+  <!-- 4. Status Message (ADDED: Shows errors or success) -->
+  <p id="status-message" style="margin-top: 12px; font-size: 14px; text-align: center;"></p>
+</form>
+
+    <p class="create-prompt">New here? <a href="#">Create account</a></p>
+    <p class="privacy">Your hands. Your sound. We ask permission for your camera.</p>
+  </section>
+ 
+ </div>
+</div>
+  <nav class="site-nav" id="siteNav" hidden aria-label="Main">
+    <a href="#" class="brand" data-page="home">MoveTune</a>
+    <div class="nav-links">
+      <a href="#" data-page="home">Home</a>
+      <a href="#" data-open="learn" data-page="learn">Learn</a>
+      <a href="#" data-open="free" data-page="free">Free play</a>
+      <a href="#" data-open="game" data-page="game">Game</a>
+      <a href="#" data-open="lib" data-page="lib">Library</a>
+    </div>
+    <a href="#" class="nav-profile" data-page="profile" aria-label="Profile">
+      <span class="avatar">M</span><span>Profile</span>
+    </a>
+  </nav>
+  <div id="home" hidden>
+ <div class="studio-home">
+ 
+  <section class="greeting-group">
+    <div class="greeting">
+      <p class="tech-label">MoveTune</p>
+      <h1 class="greeting-title">Good evening</h1>
+      <p class="greeting-prompt">How do you want to make music today?</p>
+    </div>
+    <div class="streak">
+      <img src="images/flame.svg" alt="" class="icon-24">
+      <div class="streak-details">
+        <p class="streak-value">7 day streak</p>
+        <p class="streak-encouragement">Keep it going!</p>
+      </div>
+    </div>
+  </section>
+ 
+  
+  <section class="modes">
+ 
+       <a href="#" class="mode-card learn-card" data-open="learn" data-song="0">
+      <div class="mode-identity">
+        <p class="tech-label">LEARN</p>
+        <img src="images/graduation-cap.svg" alt="" class="icon-20">
+      </div>
+      <h2 class="mode-title"></h2>
+      <div class="mode-visualization">
+        <div class="melody-markers">
+          <div class="melody-note"><span>C</span></div>
+          <div class="melody-note"><span>D</span></div>
+          <div class="melody-note active"><span>E</span></div>
+          <div class="melody-note"><span>F</span></div>
+          <div class="melody-note"><span>G</span></div>
+          <div class="melody-note"><span>A</span></div>
+          <div class="melody-note"><span>B</span></div>
+        </div>
+      </div>
+    </a>
+ 
+    <a href="#" class="mode-card" data-open="free">
+      <div class="mode-identity">
+        <p class="tech-label purple">FREE PLAY</p>
+        <img src="images/audio-lines.svg" alt="" class="icon-20">
+      </div>
+      <h2 class="mode-title"></h2>
+      <img src="images/free-play.svg" alt="" class="mode-image">
+      
+    </a>
+ 
+    <a href="#" class="mode-card" data-open="game">
+      <div class="mode-identity">
+        <p class="tech-label teal">GAME</p>
+        <img src="images/audio-lines.svg" alt="" class="icon-20">
+      </div>
+      <h2 class="mode-title"></h2>
+      <img src="images/third-mode.svg" alt="" class="mode-image">
+    </a>
+ 
+  </section>
+ 
+  <section class="continue">
+    <div class="section-heading">
+      <p class="tech-label grey">CONTINUE LEARNING</p>
+      <a href="#" class="view-lessons" data-open="learn">View lessons</a>
+    </div>
+    <div class="current-lesson">
+      <div class="song-artwork">
+        <span class="album-orbit a1"></span>
+        <span class="album-orbit a2"></span>
+        <span class="album-orbit a3"></span>
+        <span class="monogram">B</span>
+      </div>
+      <div class="song-info">
+        <h3 class="song-name">Ode to Joy</h3>
+        <p class="composer">Ludwig van Beethoven</p>
+        <p class="tech-label grey">LESSON 2 OF 5</p>
+      </div>
+         <a href="#" class="button button-primary" data-open="learn" data-song="4">
+        <img src="images/play.svg" alt="" class="icon-18">
+        <span>Continue</span>
+      </a>
+    </div>
+  </section>
+ </div>
+</div>
+<div id="gameScreen" hidden>
+  <iframe id="gameFrame" title="Note Drop game" allow="camera; microphone"></iframe>
+</div>
+<div id="profile" hidden>
+  <div class="profile-page">
+    <div class="profile-card">
+      <div class="avatar avatar-lg">M</div>
+      <div>
+        <p class="tech-label">PROFILE</p>
+        <h1>Your profile</h1>
+        <p class="profile-sub">Signed in to MoveTune</p>
+      </div>
+    </div>
+    <div class="profile-stats">
+      <div class="stat-box"><b data-gp-bind="level">1</b><span>Level</span></div>
+      <div class="stat-box"><b>7</b><span>Day streak</span></div>
+      <div class="stat-box"><b>0</b><span>Songs learned</span></div>
+    </div>
+    <button type="button" id="signOutBtn" class="button button-secondary">Sign out</button>
+    
+  </div>
+</div>
+<div id="app" hidden>
+<header data-component="header">
+  <button id="homeBtn">← Home</button>
+  <h1>A NEW WAY TO FEEL SOUND</h1>
+  <div class="stats" data-component="stats">
+    <div class="stat"><b data-gp-bind="level">1</b><span>Level</span><div id="xp"><div id="xpFill"></div></div></div>
+    <div class="stat"><b data-gp-bind="points">0</b><span>Points this song</span></div>
+    <div class="stat"><b data-gp-bind="combo">x1</b><span>Combo <span data-gp-bind="streak"></span></span></div>
+  </div>
+  <div class="lesson-heading">
+  <div class="song-identity">
+    <button type="button" class="back-btn" id="lessonBack" aria-label="Back to home">
+      <img src="images/arrow-left.svg" alt="" class="icon-20">
+    </button>
+    <div class="lesson-title">
+      <p class="tech-label" data-gp-bind="lessonLabel">GUIDED LESSON</p>
+      <h2 data-gp-bind="songName">Song title</h2>
+    </div>
+  </div>
+  <div class="song-settings">
+    <select id="lessonInstrument" class="lesson-select" aria-label="Instrument"><option value="piano">Piano</option><option value="guitar">Guitar</option><option value="violin">Violin</option><option value="flute">Flute</option><option value="organ">Organ</option><option value="marimba">Marimba</option><option value="harp">Harp</option><option value="bells">Bells</option><option value="synth">Synth</option></select>
+    <button type="button" class="button button-secondary" data-gp-action="quit">Quit lesson</button>
+  </div>
+</div>
+</header>
+ 
+ 
+<p class="bar-title"></p>
+<div id="chords" data-component="chord-bar" role="group" aria-label="Chords and their left-hand gestures"></div>
+ 
+<main>
+  <div id="stage" data-component="camera-stage" role="img" aria-label="Camera view with hand tracking">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+    <div id="flash"></div>
+    <div id="pops" aria-hidden="true"></div>
+    <div id="recBadge" hidden>● REC</div>
+    <button id="startBtn" class="primary" data-gp-action="start">Start camera and sound</button>
+    <div class="field-status"><i class="pulse"></i><span>GESTURE INPUT LIVE</span></div>
+<div class="hand-status">RIGHT HAND: <span data-gp-bind="rightTxt">not seen</span></div>
+<div class="gesture-indicator"><i class="ring"></i><span>TARGET NOTE <b data-gp-bind="targetNote">-</b></span></div>
+<p class="axis-label">AXIS LABEL</p>
+<div id="outWave" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+<div id="keys" data-component="note-keys" role="group" aria-label="The 12 notes. Right-hand gesture for each is in the gesture map."></div>
+  </div>
+ 
+  <div id="panel" data-component="side-panel">
+    <div class="muted" data-gp-bind="status" role="status" aria-live="polite">Click Start, then allow the camera.</div>
+ 
+    <label class="card split" data-component="instrument-picker">
+      <span>Instrument</span>
+      <select id="instrument"><option value="piano">Piano</option><option value="guitar">Guitar</option><option value="violin">Violin</option><option value="flute">Flute</option><option value="organ">Organ</option><option value="marimba">Marimba</option><option value="harp">Harp</option><option value="bells">Bells</option><option value="synth">Synth</option></select>
+    </label>
+ 
+    <div class="tabs" role="tablist" data-component="mode-tabs">
+      <button role="tab" id="tabFree" data-gp-action="free">Free play</button>
+      <button role="tab" id="tabLearn" data-gp-action="learn">Learn</button>
+      <button role="tab" id="tabGame" data-gp-action="game">Game</button>
+      <button role="tab" id="tabLib" data-gp-action="lib">Library</button>
+    </div>
+ 
+    <div class="card split" data-component="live-reading" aria-live="off">
+      <div>
+        <div class="muted">Right hand: <span data-gp-bind="rightTxt">not seen</span></div>
+        <div class="muted">Left hand: <span data-gp-bind="leftTxt">not seen</span></div>
+        <div class="muted">Last played: <span data-gp-bind="last">-</span></div>
+      </div>
+      <div class="split"><div><div class="muted">Note</div><div class="big" data-gp-bind="note">-</div></div>
+      <div><div class="muted">Chord</div><div class="big" data-gp-bind="chordNow">-</div></div></div>
+    </div>
+ 
+    <div class="card" id="freePanel" data-component="free-play">
+      <div class="how">Right hand plays one of 12 notes. Copy the pictures in the gesture map. A fist is silence.</div>
+      <div class="how">Left hand changes the chord (see the chord bar above). The chord sounds each time you switch.</div>
+      <div class="muted">No camera? Keys 1 to 9, 0, - and = play the 12 notes left to right. Z X C V B N pick chords C, G, Am, F, Dm, Em.</div>
+      <div class="row" style="justify-content:flex-start"><button id="recBtn" data-gp-action="record">Start recording</button></div>
+    </div>
+ 
+    <div class="card" id="songPanel" data-component="song-panel" hidden>
+      <div id="songPick">
+        <div class="how" id="pickHelp"></div>
+        <label class="muted"><input type="checkbox" id="favOnly"> Show favourites only</label>
+        <label class="muted"><input type="checkbox" id="autoRec" checked> Save a video of my playing</label>
+        <div class="list" id="songList"></div>
+      </div>
+      <div id="songPrep" hidden>
+        <h2 id="prepTitle"></h2>
+        <div class="how">Chords in this song. Practise each gesture with your left hand now:</div>
+        <div class="chips" id="prepChords" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"></div>
+        <div class="how">Notes in this song and the right-hand gesture for each:</div>
+        <div class="gmap" id="prepNotes"></div>
+        <div class="muted" style="margin-top:8px">Hold each chord with your left hand until the notes of that part are done.</div>
+        <div class="row" style="justify-content:flex-start"><button class="primary" id="goBtn">I'm ready</button><button id="backBtn">Back</button></div>
+      </div>
+      <div id="songPlay" hidden>
+        <div class="live-points">
+  <div>
+    <p class="tech-label grey">POINTS</p>
+    <p class="points-value" data-gp-bind="points">0</p>
+  </div>
+  <div class="combo">
+    <p class="combo-value" data-gp-bind="combo">x1</p>
+    <p class="tech-label purple">COMBO</p>
+  </div>
+</div>
+<div class="divider"></div>
+<p class="tech-label">CURRENT GESTURE</p>
+        <div class="muted" id="songTitle"></div>
+        <div class="gpair">
+          <div class="gcard left">
+            <div class="gwho">Left hand: chord</div>
+            <div class="gname" id="tChordName">-</div>
+            <div id="tChordPic"></div>
+            <div class="gtxt" id="tChord"></div>
+          </div>
+          <div class="gcard right">
+            <div class="gwho">Right hand: note</div>
+            <div class="gname" id="target" aria-live="assertive">-</div>
+            <div id="tNotePic"></div>
+            <div class="gtxt" id="howRight"></div>
+          </div>
+        </div>
+        <div id="barWrap"><div id="bar"></div></div>
+        <div class="muted" id="upnext"></div>
+        <div class="muted" id="stepText"></div>
+        <div class="muted">Repeated note? Drop your right hand or make a fist between them.</div>
+        <div class="row" style="justify-content:flex-start"><button data-gp-action="quit">Quit song</button></div>
+      </div>
+    </div>
+ 
+    <div class="card" id="libPanel" data-component="library" hidden>
+      <div class="how">Your recordings</div>
+      <div class="muted">Stored in this browser's database (IndexedDB).</div>
+      <div class="list" id="libList" style="margin-top:8px"></div>
+    </div>
+ 
+    <div class="card" id="gestureMap" data-component="gesture-map">
+      <div class="how"><b>Gesture map</b>: copy these hand shapes</div>
+      <div class="muted">Right hand = the 12 notes</div>
+      <div class="gmap" id="gmapNotes"></div>
+      <div class="muted" style="margin-top:12px">Left hand = chords</div>
+      <div class="gmap" id="gmapChords"></div>
+    </div>
+ 
+    <div class="card muted" id="scoreHelp">
+      Game scoring: 100 points per note times your multiplier, plus up to 50 for speed. The multiplier grows every 3 notes in a row (max x5). A wrong note or chord resets it. A perfect song earns 500 extra. Learn mode has no score or penalties.
+    </div>
+  </div>
+</main>
+<section id="timeline" data-component="note-timeline" hidden>
+  <div class="phrase-progress">
+    <div class="phrase-title">
+      <p class="tech-label grey" data-gp-bind="stepLabel">NOTE 1 OF 1</p>
+      <p class="tech-label" data-gp-bind="progressPct">0%</p>
+    </div>
+    <div class="timeline-key"><span class="hit-key">Hit</span><span class="up-key">Upcoming</span></div>
+  </div>
+  <div id="notes"></div>
+</section>
+ 
+<div id="overlay" data-component="result-dialog" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+  <div id="result">
+    <div id="stars"></div>
+    <div id="resultTitle" class="how"></div>
+    <div id="resultScore"></div>
+    <div class="muted" id="resultDetail"></div>
+    <div class="row">
+      <button data-gp-action="again">Play again</button>
+      <button class="primary" id="nextBtn" data-gp-action="next">Next song</button>
+      <button data-gp-action="menu">Song list</button>
+    </div>
+  </div>
+</div>
+ 
+<dialog id="viewer" data-component="video-viewer" aria-label="Recording">
+  <video id="viewVid" controls playsinline></video>
+  <button id="closeView">Close</button>
+</dialog>
+</div>
+ 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<script type="module">
+import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+ 
+const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
+const MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+const FLIP_HANDS = false;   // if left and right are swapped when you test, set this to false
+const STABLE_FRAMES = 4;   // frames a gesture must hold before it counts
+const NOTES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];   // the 12 notes, left to right, played in octave 4
+const OCT = 4;
+ 
+/* ===== NEW: right-hand gestures for the 12 notes ===== */
+const GESTURE_TO_NOTE = {
+  oneFinger: "A",    oneFingerTilt: "A♯",
+  thumbUp: "B",
+  twoFingers: "C",   twoFingersTilt: "C♯",
+  threeFingers: "D", threeFingersTilt: "D♯",
+  thumbDown: "E",
+  fourFingers: "F",  fourFingersTilt: "F♯",
+  fiveFingers: "G",  fiveFingersTilt: "G♯",
+};
+const GESTURE_LABELS = {
+  oneFinger: "1 finger",     oneFingerTilt: "1 finger, tilted left",
+  thumbUp: "Thumbs up",
+  twoFingers: "2 fingers",   twoFingersTilt: "2 fingers, tilted left",
+  threeFingers: "3 fingers", threeFingersTilt: "3 fingers, tilted left",
+  thumbDown: "Thumbs down",
+  fourFingers: "4 fingers",  fourFingersTilt: "4 fingers, tilted left",
+  fiveFingers: "5 fingers",  fiveFingersTilt: "5 fingers, tilted left",
+  fist: "Fist (stop)",
+};
+const NOTE_TO_GESTURE = Object.fromEntries(Object.entries(GESTURE_TO_NOTE).map(([g, n]) => [n, g]));
+const toneName = (n) => n.replace("♯", "#") + OCT;                       // "C♯" -> "C#4" for the sound engine
+const keyId = (n) => "key-" + NOTES.indexOf(n);
+const noteColor = (n) => `var(--color-note-${n[0].toLowerCase()})`;
+ 
+/* ===== NEW: hand pictures (drawn in code, no image files needed). t=thumb i=index m=middle r=ring p=pinky ===== */
+const HANDS = {
+  oneFinger: { i: 1 }, twoFingers: { i: 1, m: 1 }, threeFingers: { i: 1, m: 1, r: 1 }, fourFingers: { i: 1, m: 1, r: 1, p: 1 },
+  fiveFingers: { t: 1, i: 1, m: 1, r: 1, p: 1 },
+  thumbUp: { t: 1, up: 1 }, thumbDown: { t: 1, up: 1, flip: 1 }, fist: {},
+};
+// Make a tilted copy of each finger picture (adds "tilt: 1")
+for (const g of ["oneFinger", "twoFingers", "threeFingers", "fourFingers", "fiveFingers"]) {
+  HANDS[g + "Tilt"] = { ...HANDS[g], tilt: 1 };
+}
+function handSVG(f) {
+  const on = "#f4efe2", off = "#b8ad95", X = { i: 23, m: 36.5, r: 50, p: 63.5 }, L = { i: 44, m: 50, r: 45, p: 36 };
+  let back = "", front = "";
+  for (const k of ["i", "m", "r", "p"]) {
+    if (f[k]) back += `<rect x="${X[k]}" y="${64 - L[k]}" width="12" height="${L[k] + 10}" rx="6" fill="${on}"/>`;
+    else if (!(k === "i" && f.ok)) front += `<rect x="${X[k]}" y="58" width="12" height="24" rx="6" fill="${off}"/>`;
+  }
+  if (f.up) back += `<rect x="19" y="20" width="14" height="70" rx="7" fill="${on}"/>`;
+  else if (f.t) back += `<rect x="-6" y="-38" width="13" height="42" rx="6.5" fill="${on}" transform="translate(36 100) rotate(-45)"/>`;
+  else if (!f.ok) front += `<rect x="30" y="90" width="30" height="13" rx="6.5" fill="${off}"/>`;
+  if (f.ok) front += `<circle cx="31" cy="58" r="11" fill="none" stroke="${on}" stroke-width="5"/>`;
+  const body = `${back}<rect x="22" y="64" width="54" height="50" rx="14" fill="${on}"/>${front}`;
+let turn = "";
+if (f.flip) turn = "rotate(180 50 60)";
+if (f.tilt) turn = "translate(50 60) rotate(-90) scale(0.85) translate(-50 -60)";   // 90° to the left, shrunk a bit so it fits
+return `<svg class="hand" viewBox="0 0 100 120" aria-hidden="true">${turn ? `<g transform="${turn}">${body}</g>` : body}</svg>`;
+}
+ 
+/* ===== NEW: tells the 12 right-hand gestures apart from the 21 hand landmarks ===== */
+const TILT_RATIO = 1;          // 1 = counts as tilted once the hand is turned past 45°
+const TILT_LEFT_ONLY = false;  // false = tilting either way gives the sharp. true = only a tilt to YOUR left
+
+// Which way is the hand pointing? Uses the line from wrist (point 0) to middle-finger knuckle (point 9)
+function handTurn(lm) {
+  const v = $("video");
+  const dx = (lm[9].x - lm[0].x) * (v.videoWidth || 1);    // sideways movement
+  const dy = (lm[9].y - lm[0].y) * (v.videoHeight || 1);   // up/down movement
+  if (Math.abs(dx) <= Math.abs(dy) * TILT_RATIO) return "up";
+  return dx > 0 ? "left" : "right";
+}
+
+function classifyRight(lm) {
+  const size = dist(lm[0], lm[9]) || 0.1;
+  const up = (tip, pip) => dist(lm[tip], lm[0]) > dist(lm[pip], lm[0]);
+  const f = { t: dist(lm[4], lm[17]) > dist(lm[3], lm[17]), i: up(8, 6), m: up(12, 10), r: up(16, 14), p: up(20, 18) };
+  const code = `${+f.t}${+f.i}${+f.m}${+f.r}${+f.p}`;   // thumb, index, middle, ring, pinky (1 = out)
+
+  if (code === "10000") {                               // only the thumb: up or down?
+    if (lm[4].y < lm[2].y - size * 0.4) return "thumbUp";
+    if (lm[4].y > lm[2].y + size * 0.4) return "thumbDown";
+    return null;
+  }
+
+  const table = { "01000": "oneFinger", "01100": "twoFingers", "01110": "threeFingers",
+                  "01111": "fourFingers", "11111": "fiveFingers", "00000": "fist" };
+  const g = table[code];
+  if (!g || g === "fist") return g || null;
+
+  const turn = handTurn(lm);
+  if (turn === "up") return g;                                      // upright = natural note
+  if (turn === "left" || !TILT_LEFT_ONLY) return g + "Tilt";        // sideways = sharp note
+  return null;
+}
+// Left hand: 0 to 5 fingers picks the chord (index = finger count)
+const CH = ["C", "G", "Am", "F", "Dm", "Em"];
+const CHORDS = {
+  C: ["C3", "E3", "G3"], G: ["G2", "B2", "D3", "G3"], Am: ["A2", "C3", "E3"],
+  F: ["F2", "A2", "C3", "F3"], Dm: ["D3", "F3", "A3"], Em: ["E3", "G3", "B3"],
+};
+const gest = (c) => CH.indexOf(c);
+const gtxt = (n) => (n === 0 ? "fist" : n + (n === 1 ? " finger" : " fingers"));
+const fing = (n) => `<span class="fi" aria-hidden="true">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= n ? "up" : ""}"></i>`).join("")}</span>`;
+ 
+// Songs: "Chord: notes | Chord: notes". Use the 12 note names: C C♯ D D♯ E F F♯ G G♯ A A♯ B
+// Add your own: the 4th argument true = popular song (always unlocked), false = practice drill.
+const mk = (title, s, pop) => ({ title, pop, steps: s.split("|").flatMap((p) => { const [c, n] = p.split(":"); return n.trim().split(" ").map((x) => ({ n: x, c: c.trim() })); }) });
+const SONGS = [
+  mk("Scale climb", "C: C D E F G", false),
+  mk("Up and down", "C: C D E F G F E D C|G: D", false),
+  mk("Hot Cross Buns", "C: E D C|C: E D C|C: C C C C|G: D D D D|C: E D C", true),
+  mk("Mary Had a Little Lamb", "C: E D C D E E E|G: D D D|C: E G G|C: E D C D E E E E|G: D D E D|C: C", true),
+  mk("Ode to Joy", "C: E E F G G F E D|C: C C D E|G: E D D|C: E E F G G F E D|C: C C D E|G: D|C: C C", true),
+  mk("Jingle Bells (chorus)", "C: E E E|C: E E E|C: E G C D E|F: F F F F F E E E E|G: E D D E D G", true),
+  mk("Twinkle Twinkle Little Star", "C: C C G G A A G|F: F F E E D D C|C: G G F F E E D|G: G G F F E E D|C: C C G G A A G|F: F F E E D D C", true),
+  mk("Au Clair de la Lune", "C: C C C D E D|G: C E D D|C: C", true),
+    mk("Lightly Row", "C: G E E|G: F D D|C: C D E F|C: G G G|C: G E E|G: F D D|C: C E G G C", true),
+  mk("Three Blind Mice (first half)", "C: E D C|C: E D C|G: G F F E|G: G F F E", true),
+  mk("Frere Jacques (simple)", "C: C D E C|C: C D E C|C: E F G|C: E F G|C: G F G F E C|C: G F G F E C|C: C E C|C: C E C", true),
+  mk("Skips", "C: C E G E C|G: D F G F D", false),
+  mk("Chord switch", "C: C E G|G: D G F|F: C F E|C: C", false),
+  mk("Speed run", "C: C D E F G G F E D C|C: C E G E C", false),
+  mk("Chromatic climb", "C: C C♯ D D♯ E F F♯ G G♯ A A♯ B", false),
+  mk("Sharps practice", "C: C♯ D♯ F♯ G♯ A♯ G♯ F♯ D♯ C♯", false),
+];
+const chordsOf = (sg) => [...new Set(sg.steps.map((s) => s.c))];
+const drills = SONGS.filter((s) => !s.pop);
+const unlocked = (sg) => mode === "learn" || sg.pop || drills.indexOf(sg) === 0 || (save.stars[drills[drills.indexOf(sg) - 1].title] || 0) >= 1;
+ 
+// ---------- helpers, events, Figma bindings ----------
+const $ = (id) => document.getElementById(id);
+const bus = new EventTarget();
+const emit = (t, d) => bus.dispatchEvent(new CustomEvent(t, { detail: d }));
+const set = (k, v) => document.querySelectorAll(`[data-gp-bind="${k}"]`).forEach((e) => (e.textContent = v));
+const say = (s) => set("status", s);
+ 
+// ---------- saved progress (scores, stars, favourites) ----------
+let save = { best: {}, stars: {}, learned: {}, favs: [], total: 0 };
+try { const s = JSON.parse(localStorage.getItem("gesturePianoSave")); if (s) save = { ...save, ...s }; } catch (e) {}
+const persist = () => { try { localStorage.setItem("gesturePianoSave", JSON.stringify(save)); } catch (e) {} };
+ 
+// ---------- recordings database (IndexedDB). Swap these 4 methods for Firebase/Supabase to sync to the cloud ----------
+const db = {
+  open() { return this.p || (this.p = new Promise((ok, no) => { const r = indexedDB.open("gesturePiano", 1); r.onupgradeneeded = () => r.result.createObjectStore("rec", { keyPath: "id", autoIncrement: true }); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); })); },
+  async tx(m, f) { const d = await this.open(); return new Promise((ok, no) => { const t = d.transaction("rec", m); const q = f(t.objectStore("rec")); t.oncomplete = () => ok(q.result); t.onerror = () => no(t.error); }); },
+  add(o) { return this.tx("readwrite", (s) => s.add(o)); },
+  all() { return this.tx("readonly", (s) => s.getAll()); },
+  del(id) { return this.tx("readwrite", (s) => s.delete(id)); },
+};
+ 
+// ---------- state ----------
+let landmarker = null, running = false, camStream = null;
+let cand = { n: null, count: 0 }, lcand = { c: undefined, count: 0 }, lastNote = null, liveStr = "";
+let mode = "free", songIdx = 0, playing = false, prep = false;
+let step = 0, points = 0, combo = 0, correct = 0, mistakes = 0, stepStart = 0;
+let curChord = null, kbChord = "C";
+ 
+// ---------- keys and chord chips ----------
+NOTES.forEach((n) => {
+  const k = document.createElement("div");
+  k.className = "key" + (n.includes("♯") ? " sharp" : ""); k.id = keyId(n);
+  k.style.setProperty("--kc", noteColor(n));
+  k.title = GESTURE_LABELS[NOTE_TO_GESTURE[n]];
+  k.textContent = n;
+  $("keys").appendChild(k);
+});
+const COUNT_HANDS = [HANDS.fist, HANDS.oneFinger, HANDS.twoFingers, HANDS.threeFingers, HANDS.fourFingers, HANDS.fiveFingers];
+const chordHand = (c) => handSVG(COUNT_HANDS[gest(c)]);
+const chip = (c, big) => `<div class="chip${big ? " big" : ""}" data-c="${c}">${chordHand(c)}<b>${c}</b><small>${big ? "Left hand: " : ""}${gtxt(gest(c))}</small></div>`;
+$("chords").innerHTML = CH.map((c) => chip(c)).join("");
+const noteCard = (n) => { const g = NOTE_TO_GESTURE[n]; return `<div class="gm" data-n="${n}" style="--kc:${noteColor(n)}">${handSVG(HANDS[g])}<b>${n}</b><small>${GESTURE_LABELS[g]}</small></div>`; };
+$("gmapNotes").innerHTML = NOTES.map(noteCard).join("") + `<div class="gm" style="--kc:#777">${handSVG(HANDS.fist)}<b>-</b><small>${GESTURE_LABELS.fist}</small></div>`;
+$("gmapChords").innerHTML = CH.map((c) => `<div class="gm" data-c="${c}">${chordHand(c)}<b>${c}</b><small>${gtxt(gest(c))}</small></div>`).join("");
+let waveT = 0;
+function pulseWave() { const w = $("outWave"); w.classList.add("on"); clearTimeout(waveT); waveT = setTimeout(() => w.classList.remove("on"), 600); }
+function pressKey(n) { const e = $(keyId(n)); e.classList.add("down"); setTimeout(() => e.classList.remove("down"), 180); }
+function markTarget(n) {
+  NOTES.forEach((x) => $(keyId(x)).classList.toggle("target", x === n));
+  document.querySelectorAll("#gmapNotes .gm[data-n]").forEach((e) => e.classList.toggle("target", e.dataset.n === n));
+}
+function mark() {
+  const tc = playing ? SONGS[songIdx].steps[step].c : null;
+  document.querySelectorAll(".chip").forEach((e) => { e.classList.toggle("cur", e.dataset.c === curChord); e.classList.toggle("target", e.dataset.c === tc && !!e.closest("#chords")); });
+  document.querySelectorAll("#gmapChords .gm").forEach((e) => e.classList.toggle("target", e.dataset.c === tc));
+  set("chordNow", curChord || "-");
+}
+ 
+// ---------- scoring ----------
+const mult = () => Math.min(5, 1 + Math.floor(Math.max(0, combo - 1) / 3));
+const level = () => Math.floor(save.total / 1000) + 1;
+function updateHud() {
+  set("points", points); set("combo", "x" + mult()); set("streak", combo > 0 ? `(${combo} in a row)` : ""); set("level", level());
+  $("xpFill").style.width = (save.total % 1000) / 10 + "%";
+  emit("score", { points, combo, level: level() });
+}
+function pop(text, cls) {
+  const d = document.createElement("div"); d.className = "pop " + cls; d.textContent = text;
+  $("pops").appendChild(d); setTimeout(() => d.remove(), 1000);
+  const f = $("flash"); f.className = cls; setTimeout(() => (f.className = ""), 120);
+}
+ 
+// ---------- sound: piano, guitar, violin ----------
+let master = null, recDest = null, cur = "piano";
+const inst = {};
+async function ensureAudio() {
+  if (master) return;
+  await Tone.start();
+  master = new Tone.Gain(0.9).toDestination();
+  recDest = Tone.getContext().createMediaStreamDestination();   // lets us record the sound into the video
+  master.connect(recDest);
+  const piano = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "triangle" }, envelope: { attack: 0.005, decay: 0.5, sustain: 0.12, release: 1.2 } }).connect(master);
+  const vib = new Tone.Vibrato(5.5, 0.12).connect(master);
+  const lp = new Tone.Filter(2800, "lowpass").connect(vib);
+  const violin = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sawtooth" }, envelope: { attack: 0.12, decay: 0.2, sustain: 0.8, release: 0.6 } }).connect(lp);
+  violin.volume.value = -9;
+  const pool = Array.from({ length: 8 }, () => new Tone.PluckSynth({ attackNoise: 1.2, dampening: 3200, resonance: 0.97 }).connect(master));
+  let pi = 0;
+  inst.piano = (n, t, d) => piano.triggerAttackRelease(n, d, t);
+  inst.violin = (n, t, d) => violin.triggerAttackRelease(n, d, t);
+  inst.guitar = (n, t) => pool[pi++ % pool.length].triggerAttack(n, t);
+    // ---- more instruments ----
+  const fluteVib = new Tone.Vibrato(5, 0.08).connect(master);
+  const flute = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.08, decay: 0.1, sustain: 0.9, release: 0.5 } }).connect(fluteVib);
+  const organ = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "square" }, envelope: { attack: 0.02, decay: 0.1, sustain: 0.9, release: 0.3 } }).connect(new Tone.Filter(1800, "lowpass").connect(master));
+  organ.volume.value = -14;
+  const marimba = new Tone.PolySynth(Tone.FMSynth, { harmonicity: 3.01, modulationIndex: 14, oscillator: { type: "triangle" }, envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.4 }, modulation: { type: "square" }, modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 } }).connect(master);
+  marimba.volume.value = -8;
+  const bells = new Tone.PolySynth(Tone.FMSynth, { harmonicity: 8, modulationIndex: 2, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 2, sustain: 0.1, release: 2 }, modulation: { type: "square" }, modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 } }).connect(master);
+  bells.volume.value = -14;
+  const synth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "fatsawtooth", count: 3, spread: 20 }, envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 0.8 } }).connect(new Tone.Filter(2200, "lowpass").connect(master));
+  synth.volume.value = -14;
+  const harpPool = Array.from({ length: 8 }, () => new Tone.PluckSynth({ attackNoise: 0.6, dampening: 6000, resonance: 0.985 }).connect(master));
+  let hi = 0;
+  inst.flute = (n, t, d) => flute.triggerAttackRelease(n, d, t);
+  inst.organ = (n, t, d) => organ.triggerAttackRelease(n, d, t);
+  inst.marimba = (n, t, d) => marimba.triggerAttackRelease(n, d, t);
+  inst.bells = (n, t, d) => bells.triggerAttackRelease(n, d, t);
+  inst.synth = (n, t, d) => synth.triggerAttackRelease(n, d, t);
+  inst.harp = (n, t) => harpPool[hi++ % harpPool.length].triggerAttack(n, t);
+}
+const logEv = (o) => { if (rec) recEvents.push({ t: Math.round(performance.now() - recT0), ...o }); };
+function playNote(n) {
+  if (!master) return;
+  const k = toneName(n);
+  inst[cur](k, Tone.now(), "4n");
+  set("last", n + OCT); pressKey(n); pulseWave(); logEv({ k }); emit("note", { note: n + OCT, instrument: cur });
+}
+function playChord(c) {
+  if (!master) return;
+  CHORDS[c].forEach((n, i) => inst[cur](n, Tone.now() + i * 0.035, "2n"));   // slight strum
+  pulseWave(); logEv({ c }); emit("chord", { chord: c, instrument: cur });
+}
+ 
+// ---------- recording (camera + sound) saved to the database ----------
+let rec = null, chunks = [], recEvents = [], recT0 = 0;
+function startRec(meta) {
+  if (rec || !recDest) return;
+  if (!window.MediaRecorder) { say("Recording is not supported in this browser."); return; }
+  const tracks = [...(camStream ? camStream.getVideoTracks() : []), ...recDest.stream.getAudioTracks()];
+  const mt = ["video/webm;codecs=vp9,opus", "video/webm", "video/mp4"].find((t) => MediaRecorder.isTypeSupported(t)) || "";
+  chunks = []; recEvents = []; recT0 = performance.now();
+  rec = new MediaRecorder(new MediaStream(tracks), mt ? { mimeType: mt } : {});
+  rec.meta = { ...meta, instrument: cur, hasVideo: !!camStream };
+  rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  rec.start(1000);
+  $("recBadge").hidden = false; emit("recording", { on: true });
+}
+function stopRec(keep) {
+  return new Promise((res) => {
+    if (!rec) return res();
+    const r = rec; rec = null; $("recBadge").hidden = true; emit("recording", { on: false });
+    r.onstop = async () => {
+      if (keep && chunks.length) {
+        try { await db.add({ ...r.meta, date: Date.now(), events: recEvents, blob: new Blob(chunks, { type: r.mimeType }) }); say("Saved to your Library."); if (mode === "lib") renderLib(); }
+        catch (e) { say("Could not save the recording: " + e.message); }
+      }
+      res();
+    };
+    r.stop();
+  });
+}
+function toggleRec() {
+  if (rec) { stopRec(true); $("recBtn").textContent = "Start recording"; return; }
+  if (!master) { say("Press Start first."); return; }
+  startRec({ title: "Free play", mode: "free" }); $("recBtn").textContent = "Stop and save";
+}
+ 
+// ---------- library ----------
+async function renderLib() {
+  const el = $("libList"); let rows = [];
+  try { rows = await db.all(); } catch (e) { el.textContent = "Saved recordings are not available in this browser."; return; }
+  el.innerHTML = rows.length ? "" : `<div class="muted">No recordings yet. Finish a song in Learn or Game mode, or press Record in Free play.</div>`;
+  rows.sort((a, b) => b.date - a.date).forEach((r) => {
+    const d = document.createElement("div"); d.className = "rec";
+    d.innerHTML = `<div><b>${r.title}</b><div class="muted">${new Date(r.date).toLocaleString()} - ${r.instrument}${r.score ? " - " + r.score + " pts" : ""}</div></div><div class="row" style="margin:0"></div>`;
+    const bx = d.querySelector(".row");
+    const add = (t, f) => { const b = document.createElement("button"); b.textContent = t; b.onclick = f; bx.appendChild(b); };
+    add("Watch", () => { $("viewVid").src = URL.createObjectURL(r.blob); $("viewer").showModal(); });
+    add("Download", () => { const a = document.createElement("a"); a.href = URL.createObjectURL(r.blob); a.download = `${r.title}.${r.blob.type.includes("mp4") ? "mp4" : "webm"}`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); });
+    add("Delete", async () => { await db.del(r.id); renderLib(); });
+    el.appendChild(d);
+  });
+}
+$("closeView").onclick = () => $("viewer").close();
+$("viewer").onclose = () => { const v = $("viewVid"); v.pause(); if (v.src) URL.revokeObjectURL(v.src); v.removeAttribute("src"); };
+ 
+// ---------- songs: list, favourites, chord briefing, play ----------
+function renderSongs() {
+  const el = $("songList"); el.innerHTML = "";
+  $("pickHelp").textContent = mode === "learn" ? "Pick a song to learn. Hints show every note and chord, with no score." : "Pick a song. Earn a star to unlock the next practice drill.";
+  const favOnly = $("favOnly").checked;
+  SONGS.forEach((sg, i) => {
+    const fav = save.favs.includes(sg.title);
+    if (favOnly && !fav) return;
+    const ok = unlocked(sg), s = save.stars[sg.title] || 0;
+    const row = document.createElement("div"); row.className = "songrow";
+    const b = document.createElement("button");
+    b.className = "song" + (ok ? "" : " locked"); b.disabled = !ok;
+    const meta = mode === "learn" ? (save.learned[sg.title] ? "Learned" : "") : `${"★".repeat(s)}${"☆".repeat(3 - s)} Best ${save.best[sg.title] || 0}`;
+    b.innerHTML = `<span>${ok ? "" : "Locked: "}${sg.title}${sg.pop ? "" : " (drill)"}</span><span class="meta">${meta}</span>`;
+    b.onclick = () => showPrep(i);
+    const f = document.createElement("button");
+    f.className = "fav"; f.textContent = fav ? "★" : "☆"; f.setAttribute("aria-pressed", fav); f.setAttribute("aria-label", "Favourite " + sg.title);
+    f.onclick = () => { save.favs = fav ? save.favs.filter((t) => t !== sg.title) : [...save.favs, sg.title]; persist(); renderSongs(); };
+    row.append(b, f); el.appendChild(row);
+  });
+  if (!el.children.length) el.innerHTML = `<div class="muted">No favourites yet. Tap the star next to a song.</div>`;
+}
+$("favOnly").onchange = renderSongs;
+ 
+function showPrep(i) {
+  songIdx = i; prep = true; playing = false;
+  $("prepTitle").textContent = SONGS[i].title;
+  $("prepChords").innerHTML = chordsOf(SONGS[i]).map((c) => chip(c, true)).join("");
+  $("prepNotes").innerHTML = [...new Set(SONGS[i].steps.map((x) => x.n))].sort((a, b) => NOTES.indexOf(a) - NOTES.indexOf(b)).map(noteCard).join("");
+  renderSong(); mark();
+}
+function renderSong() {
+  $("songPick").hidden = prep || playing; $("songPrep").hidden = !prep; $("songPlay").hidden = !playing;
+  const lesson = playing && (mode === "learn" || mode === "game");
+  $("app").classList.toggle("lesson", lesson);
+  $("timeline").hidden = !lesson;
+  if (!playing) { markTarget(null); if (!prep) renderSongs(); return; }
+  const sg = SONGS[songIdx], t = sg.steps[step];
+  markTarget(t.n); mark();
+  $("songTitle").textContent = sg.title + (mode === "learn" ? " (learning)" : "");
+  const tg = NOTE_TO_GESTURE[t.n];
+  $("target").textContent = t.n;
+  $("tChordName").textContent = t.c;
+  $("tChordPic").innerHTML = chordHand(t.c);
+  $("tChord").textContent = gtxt(gest(t.c));
+  $("tNotePic").innerHTML = handSVG(HANDS[tg]);
+  $("howRight").textContent = GESTURE_LABELS[tg];
+  const nx = sg.steps.slice(step + 1, step + 5).map((s) => `${s.n} (${s.c})`).join("  ");
+  $("upnext").textContent = nx ? "Next: " + nx : "Last note";
+  $("stepText").textContent = `Note ${step + 1} of ${sg.steps.length}`;
+  $("bar").style.width = (step / sg.steps.length) * 100 + "%";
+ 
+  // ----- lesson workspace -----
+  set("lessonLabel", mode === "learn" ? "GUIDED LESSON" : "SCORE MODE");
+  set("songName", sg.title);
+  set("instrumentName", cur.toUpperCase());
+  set("targetNote", t.n);
+  set("stepLabel", `NOTE ${step + 1} OF ${sg.steps.length}`);
+  set("progressPct", Math.round((step / sg.steps.length) * 100) + "%");
+  const from = Math.max(0, step - 4);
+  $("notes").innerHTML = sg.steps.slice(from, from + 12).map((s, j) => {
+    const i = from + j, cls = i < step ? "hit" : i === step ? "now" : "next";
+    return `<div class="nm ${cls}"><b>${s.n}</b>${i === step ? "<small>NOW</small>" : ""}</div>`;
+  }).join("");
+}
+ 
+async function startSong(i) {
+  await ensureAudio();
+  songIdx = i; step = 0; points = 0; combo = 0; correct = 0; mistakes = 0;
+  stepStart = performance.now(); lastNote = null; playing = true; prep = false;
+  $("overlay").classList.remove("show");
+  if ($("autoRec").checked) startRec({ title: SONGS[i].title, mode });
+  renderSong(); updateHud(); emit("songstart", { title: SONGS[i].title, mode });
+}
+async function quitSong() { playing = false; prep = false; points = 0; combo = 0; await stopRec(false); updateHud(); renderSong(); mark(); }
+ 
+async function finishSong() {
+  playing = false;
+  const sg = SONGS[songIdx], learn = mode === "learn", perfect = mistakes === 0;
+  const acc = correct / (correct + mistakes);
+  let stars = 0, newBest = false;
+  if (learn) save.learned[sg.title] = 1;
+  else {
+    if (perfect) points += 500;
+    stars = acc >= 0.9 ? 3 : acc >= 0.7 ? 2 : 1;
+    newBest = points > (save.best[sg.title] || 0);
+    save.best[sg.title] = Math.max(points, save.best[sg.title] || 0);
+    save.stars[sg.title] = Math.max(stars, save.stars[sg.title] || 0);
+    save.total += points;
+  }
+  persist(); updateHud();
+  if (rec) { rec.meta.score = learn ? 0 : points; rec.meta.stars = stars; }
+  await stopRec(true);
+  $("stars").textContent = learn ? "✓" : "★".repeat(stars) + "☆".repeat(3 - stars);
+  $("resultTitle").textContent = learn ? sg.title + " learned!" : perfect ? "Perfect song! +500 bonus" : sg.title + " complete";
+  $("resultScore").textContent = learn ? `Accuracy ${Math.round(acc * 100)}%` : points + " points";
+  $("resultDetail").textContent = learn ? "Try it in Game mode for a score." : `Accuracy ${Math.round(acc * 100)}%` + (newBest ? " - new best score!" : ` - best ${save.best[sg.title]}`);
+  $("nextBtn").disabled = songIdx + 1 >= SONGS.length || !unlocked(SONGS[songIdx + 1]);
+  $("overlay").classList.add("show");
+  markTarget(null); emit("songend", { title: sg.title, points, stars });
+}
+ 
+function handleNote(n) {
+  if (n === lastNote) return;
+  lastNote = n;
+  if (!n) return;
+  if (mode === "free" || !playing) { if (mode === "free" || prep) playNote(n); return; }
+  const t = SONGS[songIdx].steps[step];
+  if (n === t.n && curChord === t.c) {
+    const learn = mode === "learn";
+    combo += 1; correct += 1;
+    const bonus = Math.max(0, Math.round(50 - ((performance.now() - stepStart) / 1000) * 10));
+    const gain = learn ? 0 : 100 * mult() + bonus;
+    points += gain; playNote(n);
+    pop(learn ? "Good" : "+" + gain, "good");
+    step += 1; stepStart = performance.now(); updateHud();
+    if (step >= SONGS[songIdx].steps.length) finishSong(); else renderSong();
+  } else {
+    combo = 0; mistakes += 1; updateHud();
+    const why = curChord !== t.c ? (curChord ? `Hold chord ${t.c} (${gtxt(gest(t.c))})` : "Show your left hand") : "Wrong note";
+    pop(why, "bad"); say(why);
+  }
+}
+function setChord(c) {
+  if (c === null) { if (playing) { curChord = null; mark(); } return; }   // free play keeps the last chord
+  if (c === curChord) return;
+  curChord = c; mark();
+  if (mode !== "lib") playChord(c);
+}
+ 
+// ---------- hand tracking ----------
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+function countFingers(lm) {
+  let n = 0;
+  if (dist(lm[4], lm[17]) > dist(lm[3], lm[17])) n++;
+  for (const [tip, pip] of [[8, 6], [12, 10], [16, 14], [20, 18]]) if (dist(lm[tip], lm[0]) > dist(lm[pip], lm[0])) n++;
+  return n;
+}
+function processResult(res, v) {
+  let left = null, right = null, gesture = null;
+  const hands = res.landmarks || [], labels = res.handedness || res.handednesses || [];
+  const canvas = $("canvas"), ctx = canvas.getContext("2d");
+  canvas.width = v.videoWidth; canvas.height = v.videoHeight;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  hands.forEach((lm, i) => {
+    const raw = labels[i]?.[0]?.categoryName;
+    const side = FLIP_HANDS ? (raw === "Left" ? "Right" : "Left") : raw;
+    if (side === "Left") left = countFingers(lm); else { right = countFingers(lm); gesture = classifyRight(lm); }
+    ctx.fillStyle = side === "Left" ? "#38a8e0" : "#ef476f";
+    lm.forEach((p) => { ctx.beginPath(); ctx.arc(p.x * canvas.width, p.y * canvas.height, 5, 0, 7); ctx.fill(); });
+  });
+  const chord = left === null ? null : CH[left];
+  const note = gesture ? GESTURE_TO_NOTE[gesture] || null : null;
+  const s = `${left}|${gesture}`;
+  if (s !== liveStr) {
+    liveStr = s;
+    set("leftTxt", left === null ? "not seen" : `${gtxt(left)} = ${chord}`);
+    set("rightTxt", right === null ? "not seen" : gesture ? GESTURE_LABELS[gesture] : "not clear, try again");
+    set("note", note ? note + OCT : "-");
+  }
+  if (chord === lcand.c) lcand.count += 1; else { lcand.c = chord; lcand.count = 1; }
+  if (lcand.count === STABLE_FRAMES) setChord(chord);
+  if (note === cand.n) cand.count += 1; else { cand.n = note; cand.count = 1; }
+  if (cand.count === STABLE_FRAMES) handleNote(note);
+}
+function loop() {
+  if (!running) return;
+  const v = $("video");
+  if (v.readyState >= 2) processResult(landmarker.detectForVideo(v, performance.now()), v);
+  requestAnimationFrame(loop);
+}
+async function start() {
+  try {
+    $("startBtn").disabled = true;
+    say("Loading hand tracker. The first time takes a few seconds.");
+    await ensureAudio();
+    const vision = await FilesetResolver.forVisionTasks(WASM);
+    landmarker = await HandLandmarker.createFromOptions(vision, { baseOptions: { modelAssetPath: MODEL, delegate: "GPU" }, runningMode: "VIDEO", numHands: 2 });
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+    $("video").srcObject = camStream; await $("video").play();
+    running = true; $("startBtn").hidden = true;
+    say("Running. Show both hands to the camera."); loop();
+  } catch (e) {
+    $("startBtn").disabled = false;
+    say("Could not start: " + e.message + ". Allow the camera in the address bar and try again.");
+  }
+}
+ 
+// ---------- modes, buttons, keyboard ----------
+function setMode(m) {
+  if (playing || rec) stopRec(false);
+  mode = m; playing = false; prep = false; lastNote = null; $("recBtn").textContent = "Start recording";
+  [["free", "tabFree"], ["learn", "tabLearn"], ["game", "tabGame"], ["lib", "tabLib"]].forEach(([k, id]) => $(id).setAttribute("aria-selected", k === m));
+  $("freePanel").hidden = m !== "free";
+  $("songPanel").hidden = m !== "learn" && m !== "game";
+  $("libPanel").hidden = m !== "lib";
+  $("gestureMap").hidden = m === "lib";
+  $("scoreHelp").hidden = m === "free" || m === "lib";
+  points = 0; combo = 0; updateHud(); renderSong(); mark();
+  if (m === "lib") renderLib();
+  emit("mode", m);
+}
+const actions = {
+  start, free: () => setMode("free"), learn: () => setMode("learn"), game: () => setMode("game"), lib: () => setMode("lib"),
+  record: toggleRec, quit: quitSong, again: () => startSong(songIdx), next: () => startSong(songIdx + 1), play: (i) => startSong(i),
+  menu: () => { $("overlay").classList.remove("show"); points = 0; combo = 0; updateHud(); renderSong(); },
+};
+document.querySelectorAll("[data-gp-action]").forEach((el) => (el.onclick = () => actions[el.dataset.gpAction]?.()));
+$("goBtn").onclick = () => startSong(songIdx);
+$("backBtn").onclick = () => { prep = false; renderSong(); mark(); };
+$("lessonInstrument").onchange = (e) => window.GesturePiano.setInstrument(e.target.value);
+$("instrument").onchange = async (e) => { cur = e.target.value; $("lessonInstrument").value = cur; await ensureAudio(); inst[cur]("C4", Tone.now(), "4n"); emit("instrument", cur); };
+ 
+window.addEventListener("keydown", async (e) => {
+  if (e.repeat || e.target.tagName === "SELECT") return;
+  const ci = ["z", "x", "c", "v", "b", "n"].indexOf((e.key || "").toLowerCase());
+  if (ci >= 0) { await ensureAudio(); setChord(CH[ci]); return; }
+  const idx = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="].indexOf(e.key);
+  if (idx >= 0) { await ensureAudio(); lastNote = null; handleNote(NOTES[idx]); }
+});
+ 
+// Public API for a Figma-built front end: GesturePiano.on("note" | "chord" | "score" | "songstart" | "songend" | "mode" | "instrument" | "recording", fn)
+window.GesturePiano = {
+  on: (t, f) => bus.addEventListener(t, (e) => f(e.detail)),
+  actions, songs: SONGS, chords: CHORDS, gestures: CH,
+  setInstrument: (n) => { $("instrument").value = n; $("instrument").onchange({ target: { value: n } }); },
+  get state() { return { mode, playing, curChord, instrument: cur, points, combo, level: level() }; },
+};
+ 
+setMode("free");
+</script>
+<script>
+const home = document.getElementById("home");
+const app = document.getElementById("app");
+const profile = document.getElementById("profile");
+const siteNav = document.getElementById("siteNav");
+
+function setActive(page) {   // highlights the current page in the header
+  document.querySelectorAll(".nav-links a").forEach((a) => a.classList.toggle("active", a.dataset.page === page));
+}
+ 
+const gameScreen = document.getElementById("gameScreen");
+const gameFrame = document.getElementById("gameFrame");
+
+function closeGame() {
+  gameScreen.hidden = true;
+  gameFrame.src = "about:blank";   // unloads the game so its camera turns off
+}
+
+function openGame() {
+  home.hidden = true;
+  profile.hidden = true;
+  app.hidden = true;
+  gameScreen.hidden = false;
+  gameFrame.src = "game.html";
+  setActive("game");
+}
+
+function openApp(mode, song) {
+  if (mode === "game") {             // Game button -> Note Drop
+    window.GesturePiano.actions.quit();  // stop the piano's own camera first
+    openGame();
+    return;
+  }
+  closeGame();
+  home.hidden = true;
+  profile.hidden = true;
+  app.hidden = false;
+  window.GesturePiano.actions[mode]();
+  if (song !== undefined) window.GesturePiano.actions.play(Number(song));
+  setActive(mode);
+}
+function openHome() {
+  closeGame();
+  app.hidden = true;
+  profile.hidden = true;
+  home.hidden = false;
+  setActive("home");
+}
+function openProfile() {
+  closeGame();
+  app.hidden = true;
+  home.hidden = true;
+  profile.hidden = false;
+  setActive("profile");
+}
+document.querySelectorAll("[data-open]").forEach((el) => {
+  el.addEventListener("click", (e) => { e.preventDefault(); openApp(el.dataset.open, el.dataset.song); });
+});
+document.getElementById("homeBtn").addEventListener("click", openHome);
+document.querySelectorAll('[data-page="home"]').forEach((a) =>
+  a.addEventListener("click", async (e) => { e.preventDefault(); await window.GesturePiano.actions.quit(); openHome(); })
+);
+document.querySelector(".nav-profile").addEventListener("click", async (e) => {
+  e.preventDefault(); await window.GesturePiano.actions.quit(); openProfile();
+});
+
+// ----- Supabase -----
+const SUPABASE_URL = "https://uolvjfuvdrspeqpzlyiz.supabase.co/";
+const SUPABASE_KEY = "sb_publishable_b3zvADI6ZsU7m9yvA_6fcA_UrJRLz5e";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ----- Sign in screen -----
+const signin = document.getElementById("signin");
+const form = document.getElementById("signinForm");
+const statusMsg = document.getElementById("status-message");
+const usernameField = document.getElementById("usernameField");
+const usernameInput = document.getElementById("username");
+const welcomeTitle = document.querySelector(".welcome-title");
+const submitLabel = form.querySelector("button[type=submit] span");
+const createPrompt = document.querySelector(".create-prompt");
+let mode = "signin"; // or "signup"
+
+function setMode(m) {
+  mode = m;
+  const creating = m === "signup";
+  usernameField.hidden = !creating;
+  usernameInput.required = creating;
+  welcomeTitle.textContent = creating ? "Create account" : "Sign in!";
+  submitLabel.textContent = creating ? "Create my studio" : "Enter your studio";
+  createPrompt.innerHTML = creating
+    ? 'Already have an account? <a href="#">Sign in</a>'
+    : 'New here? <a href="#">Create account</a>';
+  statusMsg.textContent = "";
+}
+
+createPrompt.addEventListener("click", (e) => {
+  if (e.target.tagName === "A") {
+    e.preventDefault();
+    setMode(mode === "signin" ? "signup" : "signin");
+  }
+});
+setMode("signin");
+
+function enterApp() {
+  signin.hidden = true;
+  home.hidden = false;
+  siteNav.hidden = false;
+  setActive("home");
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  statusMsg.style.color = "";
+  statusMsg.textContent = "Working…";
+
+  const { data, error } = mode === "signup"
+    ? await sb.auth.signUp({
+        email, password,
+        options: { data: { username: usernameInput.value.trim() } }
+      })
+    : await sb.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    statusMsg.style.color = "#ff8a8a";
+    statusMsg.textContent = error.message;
+    return;
+  }
+  if (mode === "signup" && !data.session) {
+    statusMsg.textContent = "Check your email to confirm your account, then sign in.";
+    return;
+  }
+  enterApp();
+});
+
+// Sign out
+document.getElementById("signOutBtn").addEventListener("click", async () => {
+  await sb.auth.signOut();
+  profile.hidden = true; siteNav.hidden = true; signin.hidden = false;
+});
+
+// Stay logged in after a page refresh
+sb.auth.getSession().then(({ data }) => {
+  if (data.session) enterApp();
+});
+ 
+// ----- Sign in screen -----
+
+
+ 
+document.getElementById("eyeBtn").addEventListener("click", () => {
+  const p = document.getElementById("password");
+  p.type = p.type === "password" ? "text" : "password";
+});
+ 
+
+
+
+ 
+// Small waveform (values copied from your Figma CSS)
+const miniHeights = [7.2,12.8,16.59,11.55,29.38,22.99,21.41,39,19.5,29.23,36.81,11.07,28.06,24.57,8.9,16.12,9.51,8.22,16.19,14.57,18.68,31.46,14.81,30.56,36.85,8,35.76,30.8,13.18,29.57,18.24,12.92,13.82,7.37,11.01];
+const miniOpacities = [.35,.46,.56,.66,.75,.82,.88,.92,.94,.95,.93,.9,.85,.78,.7,.61,.51,.4,.41,.51,.62,.71,.79,.85,.9,.94,.95,.94,.92,.87,.81,.74,.65,.55,.45];
+const miniWave = document.getElementById("miniWave");
+miniHeights.forEach((h, i) => {
+  const bar = document.createElement("span");
+  bar.className = "mini-bar";
+  bar.style.height = h + "px";
+  bar.style.opacity = miniOpacities[i];
+  bar.style.animationDelay = i * 15 + "ms";
+  miniWave.appendChild(bar);
+});
+document.getElementById("lessonBack").addEventListener("click", async () => {
+  await window.GesturePiano.actions.quit();
+  openHome();
+});
+</script>
+<script>
+function openLearnScreen() {
+    const home = document.getElementById("home");
+    const nextScreen = document.getElementById("app");
+
+    // Enlarge the current screen
+    home.classList.add("zoom-out");
+
+    // Show the next screen after the animation
+    setTimeout(() => {
+        home.style.display = "none";
+        nextScreen.style.display = "block";
+        nextScreen.classList.add("screen-enter");
+    }, 500);
+}
+</script>
+</body>
+</html>
+ 
