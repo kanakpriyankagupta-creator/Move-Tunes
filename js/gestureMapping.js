@@ -1,18 +1,22 @@
 // Gesture label -> note name (must match names in notes.js).
 // "fist" is intentionally missing: it means stop / no sound.
+// "...Tilted" = same finger count, hand rotated 90° anticlockwise -> sharp note.
 export const GESTURE_TO_NOTE = {
+  // Natural notes
   oneFinger: "C",
   twoFingers: "D",
-  threeFingers: "E",
-  fourFingers: "F",
-  fiveFingers: "G",
-  thumbDown: "A",
+  threeFingers: "F",
+  fourFingers: "G",
+  fiveFingers: "A",
   thumbUp: "B",
-  loveSign: "C♯",
-  rockSign: "D♯",
-  okSign: "F♯",
-  shakaSign: "G♯",
-  thumbIndexMiddle: "A♯"
+  thumbDown: "E",
+
+  // Sharp notes (90° anticlockwise tilt)
+  oneFingerTilted: "C♯",
+  twoFingersTilted: "D♯",
+  threeFingersTilted: "F♯",
+  fourFingersTilted: "G♯",
+  fiveFingersTilted: "A♯"
 };
 
 // Friendly names shown in the "Detected gesture" box.
@@ -22,12 +26,14 @@ export const GESTURE_LABELS = {
   threeFingers: "Three fingers",
   fourFingers: "Four fingers",
   fiveFingers: "Five fingers",
-  thumbDown: "Thumbs down",
   thumbUp: "Thumbs up",
-  loveSign: "I love you",
-  rockSign: "Rock sign",
-  okSign: "OK sign",
-  shakaSign: "Shaka (thumb + pinky)",
-  thumbIndexMiddle: "Thumb + index + middle",
+  thumbDown: "Thumbs down",
+
+  oneFingerTilted: "Index finger (tilted 90° left)",
+  twoFingersTilted: "Two fingers (tilted 90° left)",
+  threeFingersTilted: "Three fingers (tilted 90° left)",
+  fourFingersTilted: "Four fingers (tilted 90° left)",
+  fiveFingersTilted: "Five fingers (tilted 90° left)",
+
   fist: "Fist (stop)"
 };

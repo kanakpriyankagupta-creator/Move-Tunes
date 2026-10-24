@@ -23,7 +23,7 @@
   body { margin: 0; min-height: 100vh; background: var(--color-bg); color: var(--color-text); font-family: var(--font-ui); }
   header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px var(--space-page); }
   h1 { margin: 0; font-size: 30px; letter-spacing: -.5px; }
-  h2 { margin: 6px 0; font-size: 16px; color: var(--color-muted); font-weight: 600; }
+  h2 { margin: 6px 0; font-size: 32px; color: var(--color-muted); font-weight: 600; }
   .stats { display: flex; gap: 10px; flex-wrap: wrap; }
   .stat { background: var(--color-panel); border-radius: 10px; padding: 8px 14px; min-width: 96px; }
   .stat b { display: block; font-size: 22px; }
@@ -107,6 +107,34 @@
   dialog { background: var(--color-panel); color: var(--color-text); border: 0; border-radius: 16px; padding: 16px; max-width: 94vw; }
   dialog::backdrop { background: rgba(8,24,29,.85); } dialog video { max-width: 100%; max-height: 70vh; display: block; margin-bottom: 10px; }
   [hidden] { display: none !important; }
+  /* ----- Top navigation bar ----- */
+.site-nav {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 24px;
+  background: var(--color-bg);
+  border-bottom: 1px solid rgba(244, 239, 226, .12);
+}
+.site-nav a { color: var(--color-text); text-decoration: none; }
+.site-nav .brand { font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
+.nav-links { display: flex; gap: 6px; flex-wrap: wrap; }
+.nav-links a {
+  padding: 8px 14px; border-radius: var(--radius-btn);
+  color: var(--color-muted); font-weight: 600;
+}
+.nav-links a:hover { background: var(--color-panel); color: var(--color-text); }
+.nav-links a.active { background: var(--color-text); color: var(--color-bg); }
+.nav-profile { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--color-accent); color: #fff;
+  display: grid; place-items: center; font-weight: 800;
+}
+  #gameScreen iframe {
+  width: 100%;
+  height: calc(100vh - 70px); /* 70px = roughly your nav bar height; adjust if needed */
+  border: 0;
+  display: block;
+}
   /* NEW: gesture map (hand pictures) and the two big gesture cards in songs */
   .gmap { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; margin-top: 8px; }
   .gm { background: var(--color-panel-2); border-radius: 12px; padding: 8px 6px; text-align: center; border-bottom: 4px solid var(--kc, var(--color-good)); }
@@ -318,6 +346,9 @@
   </section>
  </div>
 </div>
+<div id="gameScreen" hidden>
+  <iframe id="gameFrame" title="Note Drop game" allow="camera; microphone"></iframe>
+</div>
 <div id="profile" hidden>
   <div class="profile-page">
     <div class="profile-card">
@@ -357,7 +388,6 @@
     </div>
   </div>
   <div class="song-settings">
-    <p class="tech-label grey">INSTRUMENT: <span data-gp-bind="instrumentName">PIANO</span></p>
     <select id="lessonInstrument" class="lesson-select" aria-label="Instrument"><option value="piano">Piano</option><option value="guitar">Guitar</option><option value="violin">Violin</option><option value="flute">Flute</option><option value="organ">Organ</option><option value="marimba">Marimba</option><option value="harp">Harp</option><option value="bells">Bells</option><option value="synth">Synth</option></select>
     <button type="button" class="button button-secondary" data-gp-action="quit">Quit lesson</button>
   </div>
@@ -380,7 +410,6 @@
 <div class="hand-status">RIGHT HAND: <span data-gp-bind="rightTxt">not seen</span></div>
 <div class="gesture-indicator"><i class="ring"></i><span>TARGET NOTE <b data-gp-bind="targetNote">-</b></span></div>
 <p class="axis-label">AXIS LABEL</p>
-<div class="feedback-accent" id="timingFeedback"><span>✦</span><span id="timingText"></span></div>
 <div id="outWave" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 <div id="keys" data-component="note-keys" role="group" aria-label="The 12 notes. Right-hand gesture for each is in the gesture map."></div>
   </div>
@@ -532,13 +561,23 @@ const OCT = 4;
  
 /* ===== NEW: right-hand gestures for the 12 notes ===== */
 const GESTURE_TO_NOTE = {
-  oneFinger: "C", twoFingers: "D", threeFingers: "E", fourFingers: "F", fiveFingers: "G",
-  thumbDown: "A", thumbUp: "B", loveSign: "C♯", rockSign: "D♯", okSign: "F♯", shakaSign: "G♯", thumbIndexMiddle: "A♯",
+  oneFinger: "A",    oneFingerTilt: "A♯",
+  thumbUp: "B",
+  twoFingers: "C",   twoFingersTilt: "C♯",
+  threeFingers: "D", threeFingersTilt: "D♯",
+  thumbDown: "E",
+  fourFingers: "F",  fourFingersTilt: "F♯",
+  fiveFingers: "G",  fiveFingersTilt: "G♯",
 };
 const GESTURE_LABELS = {
-  oneFinger: "Index finger", twoFingers: "Two fingers", threeFingers: "Three fingers", fourFingers: "Four fingers", fiveFingers: "Five fingers",
-  thumbDown: "Thumbs down", thumbUp: "Thumbs up", loveSign: "I love you", rockSign: "Rock sign", okSign: "OK sign",
-  shakaSign: "Shaka (thumb + pinky)", thumbIndexMiddle: "Thumb + index + middle", fist: "Fist (stop)",
+  oneFinger: "1 finger",     oneFingerTilt: "1 finger, tilted left",
+  thumbUp: "Thumbs up",
+  twoFingers: "2 fingers",   twoFingersTilt: "2 fingers, tilted left",
+  threeFingers: "3 fingers", threeFingersTilt: "3 fingers, tilted left",
+  thumbDown: "Thumbs down",
+  fourFingers: "4 fingers",  fourFingersTilt: "4 fingers, tilted left",
+  fiveFingers: "5 fingers",  fiveFingersTilt: "5 fingers, tilted left",
+  fist: "Fist (stop)",
 };
 const NOTE_TO_GESTURE = Object.fromEntries(Object.entries(GESTURE_TO_NOTE).map(([g, n]) => [n, g]));
 const toneName = (n) => n.replace("♯", "#") + OCT;                       // "C♯" -> "C#4" for the sound engine
@@ -548,10 +587,13 @@ const noteColor = (n) => `var(--color-note-${n[0].toLowerCase()})`;
 /* ===== NEW: hand pictures (drawn in code, no image files needed). t=thumb i=index m=middle r=ring p=pinky ===== */
 const HANDS = {
   oneFinger: { i: 1 }, twoFingers: { i: 1, m: 1 }, threeFingers: { i: 1, m: 1, r: 1 }, fourFingers: { i: 1, m: 1, r: 1, p: 1 },
-  fiveFingers: { t: 1, i: 1, m: 1, r: 1, p: 1 }, thumbUp: { t: 1, up: 1 }, thumbDown: { t: 1, up: 1, flip: 1 },
-  loveSign: { t: 1, i: 1, p: 1 }, rockSign: { i: 1, p: 1 }, okSign: { ok: 1, m: 1, r: 1, p: 1 },
-  shakaSign: { t: 1, p: 1 }, thumbIndexMiddle: { t: 1, i: 1, m: 1 }, fist: {},
+  fiveFingers: { t: 1, i: 1, m: 1, r: 1, p: 1 },
+  thumbUp: { t: 1, up: 1 }, thumbDown: { t: 1, up: 1, flip: 1 }, fist: {},
 };
+// Make a tilted copy of each finger picture (adds "tilt: 1")
+for (const g of ["oneFinger", "twoFingers", "threeFingers", "fourFingers", "fiveFingers"]) {
+  HANDS[g + "Tilt"] = { ...HANDS[g], tilt: 1 };
+}
 function handSVG(f) {
   const on = "#f4efe2", off = "#b8ad95", X = { i: 23, m: 36.5, r: 50, p: 63.5 }, L = { i: 44, m: 50, r: 45, p: 36 };
   let back = "", front = "";
@@ -564,24 +606,46 @@ function handSVG(f) {
   else if (!f.ok) front += `<rect x="30" y="90" width="30" height="13" rx="6.5" fill="${off}"/>`;
   if (f.ok) front += `<circle cx="31" cy="58" r="11" fill="none" stroke="${on}" stroke-width="5"/>`;
   const body = `${back}<rect x="22" y="64" width="54" height="50" rx="14" fill="${on}"/>${front}`;
-  return `<svg class="hand" viewBox="0 0 100 120" aria-hidden="true">${f.flip ? `<g transform="rotate(180 50 60)">${body}</g>` : body}</svg>`;
+let turn = "";
+if (f.flip) turn = "rotate(180 50 60)";
+if (f.tilt) turn = "translate(50 60) rotate(-90) scale(0.85) translate(-50 -60)";   // 90° to the left, shrunk a bit so it fits
+return `<svg class="hand" viewBox="0 0 100 120" aria-hidden="true">${turn ? `<g transform="${turn}">${body}</g>` : body}</svg>`;
 }
  
 /* ===== NEW: tells the 12 right-hand gestures apart from the 21 hand landmarks ===== */
+const TILT_RATIO = 1;          // 1 = counts as tilted once the hand is turned past 45°
+const TILT_LEFT_ONLY = false;  // false = tilting either way gives the sharp. true = only a tilt to YOUR left
+
+// Which way is the hand pointing? Uses the line from wrist (point 0) to middle-finger knuckle (point 9)
+function handTurn(lm) {
+  const v = $("video");
+  const dx = (lm[9].x - lm[0].x) * (v.videoWidth || 1);    // sideways movement
+  const dy = (lm[9].y - lm[0].y) * (v.videoHeight || 1);   // up/down movement
+  if (Math.abs(dx) <= Math.abs(dy) * TILT_RATIO) return "up";
+  return dx > 0 ? "left" : "right";
+}
+
 function classifyRight(lm) {
-  const size = dist(lm[0], lm[9]) || 0.1;                                  // hand size, so it works near or far from the camera
+  const size = dist(lm[0], lm[9]) || 0.1;
   const up = (tip, pip) => dist(lm[tip], lm[0]) > dist(lm[pip], lm[0]);
   const f = { t: dist(lm[4], lm[17]) > dist(lm[3], lm[17]), i: up(8, 6), m: up(12, 10), r: up(16, 14), p: up(20, 18) };
-  if (dist(lm[4], lm[8]) < size * 0.45 && f.m && f.r && f.p) return "okSign";   // thumb touches index, other three up
-  const code = `${+f.t}${+f.i}${+f.m}${+f.r}${+f.p}`;                      // thumb, index, middle, ring, pinky (1 = extended)
-  const table = { "01000": "oneFinger", "01100": "twoFingers", "01110": "threeFingers", "01111": "fourFingers", "11111": "fiveFingers",
-    "11001": "loveSign", "01001": "rockSign", "10001": "shakaSign", "11100": "thumbIndexMiddle", "00000": "fist" };
-  if (code === "10000") {                                                   // thumb only: up or down?
+  const code = `${+f.t}${+f.i}${+f.m}${+f.r}${+f.p}`;   // thumb, index, middle, ring, pinky (1 = out)
+
+  if (code === "10000") {                               // only the thumb: up or down?
     if (lm[4].y < lm[2].y - size * 0.4) return "thumbUp";
     if (lm[4].y > lm[2].y + size * 0.4) return "thumbDown";
     return null;
   }
-  return table[code] || null;
+
+  const table = { "01000": "oneFinger", "01100": "twoFingers", "01110": "threeFingers",
+                  "01111": "fourFingers", "11111": "fiveFingers", "00000": "fist" };
+  const g = table[code];
+  if (!g || g === "fist") return g || null;
+
+  const turn = handTurn(lm);
+  if (turn === "up") return g;                                      // upright = natural note
+  if (turn === "left" || !TILT_LEFT_ONLY) return g + "Tilt";        // sideways = sharp note
+  return null;
 }
 // Left hand: 0 to 5 fingers picks the chord (index = finger count)
 const CH = ["C", "G", "Am", "F", "Dm", "Em"];
@@ -896,13 +960,7 @@ async function finishSong() {
   $("overlay").classList.add("show");
   markTarget(null); emit("songend", { title: sg.title, points, stars });
 }
-let fbTimer;
-function showTiming(text) {
-  $("timingText").textContent = text;
-  $("timingFeedback").classList.add("show");
-  clearTimeout(fbTimer);
-  fbTimer = setTimeout(() => $("timingFeedback").classList.remove("show"), 1200);
-}
+ 
 function handleNote(n) {
   if (n === lastNote) return;
   lastNote = n;
@@ -914,7 +972,6 @@ function handleNote(n) {
     combo += 1; correct += 1;
     const bonus = Math.max(0, Math.round(50 - ((performance.now() - stepStart) / 1000) * 10));
     const gain = learn ? 0 : 100 * mult() + bonus;
-    showTiming(bonus >= 40 ? "Perfect timing" : bonus >= 20 ? "Good timing" : "Keep going");
     points += gain; playNote(n);
     pop(learn ? "Good" : "+" + gain, "good");
     step += 1; stepStart = performance.now(); updateHud();
@@ -1043,21 +1100,46 @@ function setActive(page) {   // highlights the current page in the header
   document.querySelectorAll(".nav-links a").forEach((a) => a.classList.toggle("active", a.dataset.page === page));
 }
  
+const gameScreen = document.getElementById("gameScreen");
+const gameFrame = document.getElementById("gameFrame");
+
+function closeGame() {
+  gameScreen.hidden = true;
+  gameFrame.src = "about:blank";   // unloads the game so its camera turns off
+}
+
+function openGame() {
+  home.hidden = true;
+  profile.hidden = true;
+  app.hidden = true;
+  gameScreen.hidden = false;
+  gameFrame.src = "game.html";
+  setActive("game");
+}
+
 function openApp(mode, song) {
+  if (mode === "game") {             // Game button -> Note Drop
+    window.GesturePiano.actions.quit();  // stop the piano's own camera first
+    openGame();
+    return;
+  }
+  closeGame();
   home.hidden = true;
   profile.hidden = true;
   app.hidden = false;
   window.GesturePiano.actions[mode]();
-  if (song !== undefined) window.GesturePiano.actions.play(Number(song)); // jump straight into a lesson
+  if (song !== undefined) window.GesturePiano.actions.play(Number(song));
   setActive(mode);
 }
 function openHome() {
+  closeGame();
   app.hidden = true;
   profile.hidden = true;
   home.hidden = false;
   setActive("home");
 }
 function openProfile() {
+  closeGame();
   app.hidden = true;
   home.hidden = true;
   profile.hidden = false;
