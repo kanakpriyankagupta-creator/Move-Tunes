@@ -292,8 +292,17 @@
   min-height: 100vh; background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text);
 }
 #app.lesson button.primary { color: #090D14; }
-#app.lesson header h1, #app.lesson .stats, #app.lesson #homeBtn,
-#app.lesson #chords, #app.lesson #keys { display: none; }
+#app.lesson header h1,
+#app.lesson .stats,
+#app.lesson #homeBtn,
+#app.lesson #chords {
+  display: none;
+}
+
+/* Show the 12 note keys in Learning mode */
+#app.lesson #keys {
+  display: flex;
+}
 
 /* Heading */
 #app.lesson header { padding: 28px 56px 0; }
