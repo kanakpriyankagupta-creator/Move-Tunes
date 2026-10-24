@@ -399,4 +399,4 @@
   font-weight: 600;
   cursor: pointer;
 }
-.lesson-select:focus { outline: 0; border-color: var(--cyan); }
+.lesson-select:focus { outline: 0; border-color: var(--cyan); } 
