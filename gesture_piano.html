@@ -1,11 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
-<head <link rel="stylesheet" href="style.css"><link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">>
+<head></head>>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gesture Piano</title>
+<title>MoveTune</title>
 <style>
   /* FIGMA HANDOFF: tokens below use Figma-Variables-style names (color/*, radius/*, space/*).
      Restyle by overriding them in :root. Every component carries data-component="...".
@@ -101,7 +99,7 @@
   @media (prefers-reduced-motion: reduce) { .pop { animation: none; opacity: 1; } .key, #bar { transition: none; } }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Inria+Sans:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -148,10 +146,10 @@
     <form id="signinForm">
       <div class="credentials">
         <div class="field">
-          <label for="email">Username</label>
-          <div class="input-box">
-            <input id="email" type="email" placeholder="username" autocomplete="email">
-          </div>
+          <label for="username">Username</label>
+<div class="input-box">
+  <input id="username" type="text" placeholder="yourname" autocomplete="username">
+</div>
         </div>
         <div class="field">
           <label for="password">Password</label>
@@ -197,12 +195,15 @@
     </div>
   </section>
 
+  
   <section class="modes">
-    <article class="mode-card">
+
+       <a href="#" class="mode-card learn-card" data-open="learn" data-song="0">
       <div class="mode-identity">
         <p class="tech-label">LEARN</p>
         <img src="images/graduation-cap.svg" alt="" class="icon-20">
       </div>
+      <h2 class="mode-title">Learn</h2>
       <div class="mode-visualization">
         <div class="melody-markers">
           <div class="melody-note"><span>C</span></div>
@@ -210,70 +211,60 @@
           <div class="melody-note active"><span>E</span></div>
           <div class="melody-note"><span>F</span></div>
           <div class="melody-note"><span>G</span></div>
+          <div class="melody-note"><span>A</span></div>
+          <div class="melody-note"><span>B</span></div>
         </div>
       </div>
-      <div class="mode-description">
-        <h2 class="mode-title">Learn</h2>
-        <p class="mode-explanation">Step-by-step songs with hints.</p>
-      </div>
-      <div class="mode-action">
-        <span class="mode-metadata">Teaching Mode</span>
-        <a href="#" class="button button-primary" data-open="learn">
-          <img src="images/arrow-up-right-dark.svg" alt="" class="icon-18">
-          <span>Start learning</span>
-        </a>
-      </div>
-    </article>
+    </a>
 
-    <article class="mode-card">
+    <a href="#" class="mode-card" data-open="free">
       <div class="mode-identity">
         <p class="tech-label purple">FREE PLAY</p>
         <img src="images/audio-lines.svg" alt="" class="icon-20">
       </div>
-      <div class="mode-visualization">
-        <div class="sound-orbit"></div>
-        <div class="waveform" id="waveform"></div>
+      <h2 class="mode-title">Free play</h2>
+      <img src="images/free-play.png" alt="" class="mode-image">
+      <div class="instrument-tabs">
+        <span class="instrument">Guitar</span>
+        <span class="instrument">Piano</span>
+        <span class="instrument">Violin</span>
       </div>
-      <div class="mode-description">
-        <h2 class="mode-title">Free play</h2>
-        <p class="mode-explanation">Play any notes and chords with your hands.</p>
+    </a>
+
+    <a href="#" class="mode-card" data-open="game">
+      <div class="mode-identity">
+        <p class="tech-label teal">GAME</p>
+        <img src="images/audio-lines.svg" alt="" class="icon-20">
       </div>
-      <div class="mode-action">
-        <span class="mode-metadata">Free Mode</span>
-        <a href="#" class="button button-secondary" data-open="free">
-          <img src="images/arrow-up-right-light.svg" alt="" class="icon-18">
-          <span>Open free play</span>
-        </a>
-      </div>
-    </article>
+      <h2 class="mode-title">Game</h2>
+      <img src="images/third-mode.png" alt="" class="mode-image">
+    </a>
+
   </section>
 
   <section class="continue">
     <div class="section-heading">
-      <p class="tech-label grey">PICK UP WHERE YOU LEFT OFF</p>
+      <p class="tech-label grey">CONTINUE LEARNING</p>
       <a href="#" class="view-lessons" data-open="learn">View lessons</a>
     </div>
     <div class="current-lesson">
-      <div class="song-artwork"><span class="monogram">B</span></div>
+      <div class="song-artwork">
+        <span class="album-orbit a1"></span>
+        <span class="album-orbit a2"></span>
+        <span class="album-orbit a3"></span>
+        <span class="monogram">B</span>
+      </div>
       <div class="song-info">
         <h3 class="song-name">Ode to Joy</h3>
         <p class="composer">Ludwig van Beethoven</p>
         <p class="tech-label grey">LESSON 2 OF 5</p>
       </div>
-      <div class="lesson-progress">
-        <div class="progress-label">
-          <span class="lesson-segment">Lesson segment</span>
-          <span class="progress-percent">40%</span>
-        </div>
-        <div class="progress-track"><div class="progress-fill"></div></div>
-      </div>
-      <a href="#" class="button button-primary" data-open="learn">
+         <a href="#" class="button button-primary" data-open="learn" data-song="4">
         <img src="images/play.svg" alt="" class="icon-18">
         <span>Continue</span>
       </a>
     </div>
   </section>
-
  </div>
 </div>
 <div id="app" hidden>
@@ -285,7 +276,23 @@
     <div class="stat"><b data-gp-bind="points">0</b><span>Points this song</span></div>
     <div class="stat"><b data-gp-bind="combo">x1</b><span>Combo <span data-gp-bind="streak"></span></span></div>
   </div>
+  <div class="lesson-heading">
+  <div class="song-identity">
+    <button type="button" class="back-btn" id="lessonBack" aria-label="Back to home">
+      <img src="images/arrow-left.svg" alt="" class="icon-20">
+    </button>
+    <div class="lesson-title">
+      <p class="tech-label" data-gp-bind="lessonLabel">GUIDED LESSON</p>
+      <h2 data-gp-bind="songName">Song title</h2>
+    </div>
+  </div>
+  <div class="song-settings">
+    <p class="tech-label grey" data-gp-bind="instrumentName">PIANO</p>
+    <button type="button" class="button button-secondary" data-gp-action="quit">Quit lesson</button>
+  </div>
+</div>
 </header>
+
 
 <div id="chords" data-component="chord-bar" role="group" aria-label="Chords and their left-hand gestures"></div>
 <div id="keys" data-component="note-keys" role="group" aria-label="Notes and their right-hand gestures"></div>
@@ -298,6 +305,10 @@
     <div id="pops" aria-hidden="true"></div>
     <div id="recBadge" hidden>● REC</div>
     <button id="startBtn" class="primary" data-gp-action="start">Start camera and sound</button>
+    <div class="field-status"><i class="pulse"></i><span>GESTURE INPUT LIVE</span></div>
+<div class="hand-status">RIGHT HAND: <span data-gp-bind="rightTxt">not seen</span></div>
+<div class="gesture-indicator"><i class="ring"></i><span>TARGET NOTE <b data-gp-bind="targetNote">-</b></span></div>
+<p class="axis-label">AXIS LABEL</p>
   </div>
 
   <div id="panel" data-component="side-panel">
@@ -347,6 +358,18 @@
         <div class="row" style="justify-content:flex-start"><button class="primary" id="goBtn">I'm ready</button><button id="backBtn">Back</button></div>
       </div>
       <div id="songPlay" hidden>
+        <div class="live-points">
+  <div>
+    <p class="tech-label grey">POINTS</p>
+    <p class="points-value" data-gp-bind="points">0</p>
+  </div>
+  <div class="combo">
+    <p class="combo-value" data-gp-bind="combo">x1</p>
+    <p class="tech-label purple">COMBO</p>
+  </div>
+</div>
+<div class="divider"></div>
+<p class="tech-label">CURRENT GESTURE</p>
         <div class="muted" id="songTitle"></div>
         <div id="target" aria-live="assertive">-</div>
         <div class="how" id="tChord"></div>
@@ -370,6 +393,16 @@
     </div>
   </div>
 </main>
+<section id="timeline" data-component="note-timeline" hidden>
+  <div class="phrase-progress">
+    <div class="phrase-title">
+      <p class="tech-label grey" data-gp-bind="stepLabel">NOTE 1 OF 1</p>
+      <p class="tech-label" data-gp-bind="progressPct">0%</p>
+    </div>
+    <div class="timeline-key"><span class="hit-key">Hit</span><span class="up-key">Upcoming</span></div>
+  </div>
+  <div id="notes"></div>
+</section>
 
 <div id="overlay" data-component="result-dialog" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
   <div id="result">
@@ -397,7 +430,7 @@ import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@m
 
 const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
 const MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
-const FLIP_HANDS = true;   // if left and right are swapped when you test, set this to false
+const FLIP_HANDS = false;   // if left and right are swapped when you test, set this to false
 const STABLE_FRAMES = 4;   // frames a gesture must hold before it counts
 const NOTES = ["C", "D", "E", "F", "G"];   // right hand: 1 to 5 fingers, played in octave 4
 const OCT = 4;
@@ -605,6 +638,9 @@ function showPrep(i) {
 }
 function renderSong() {
   $("songPick").hidden = prep || playing; $("songPrep").hidden = !prep; $("songPlay").hidden = !playing;
+  const lesson = playing && (mode === "learn" || mode === "game");
+  $("app").classList.toggle("lesson", lesson);
+  $("timeline").hidden = !lesson;
   if (!playing) { markTarget(null); if (!prep) renderSongs(); return; }
   const sg = SONGS[songIdx], t = sg.steps[step];
   markTarget(t.n); mark();
@@ -616,6 +652,19 @@ function renderSong() {
   $("upnext").textContent = nx ? "Next: " + nx : "Last note";
   $("stepText").textContent = `Note ${step + 1} of ${sg.steps.length}`;
   $("bar").style.width = (step / sg.steps.length) * 100 + "%";
+
+  // ----- lesson workspace -----
+  set("lessonLabel", mode === "learn" ? "GUIDED LESSON" : "SCORE MODE");
+  set("songName", sg.title);
+  set("instrumentName", cur.toUpperCase());
+  set("targetNote", t.n);
+  set("stepLabel", `NOTE ${step + 1} OF ${sg.steps.length}`);
+  set("progressPct", Math.round((step / sg.steps.length) * 100) + "%");
+  const from = Math.max(0, step - 4);
+  $("notes").innerHTML = sg.steps.slice(from, from + 12).map((s, j) => {
+    const i = from + j, cls = i < step ? "hit" : i === step ? "now" : "next";
+    return `<div class="nm ${cls}"><b>${s.n}</b>${i === step ? "<small>NOW</small>" : ""}</div>`;
+  }).join("");
 }
 
 async function startSong(i) {
@@ -756,7 +805,7 @@ function setMode(m) {
 }
 const actions = {
   start, free: () => setMode("free"), learn: () => setMode("learn"), game: () => setMode("game"), lib: () => setMode("lib"),
-  record: toggleRec, quit: quitSong, again: () => startSong(songIdx), next: () => startSong(songIdx + 1),
+  record: toggleRec, quit: quitSong, again: () => startSong(songIdx), next: () => startSong(songIdx + 1), play: (i) => startSong(i),
   menu: () => { $("overlay").classList.remove("show"); points = 0; combo = 0; updateHud(); renderSong(); },
 };
 document.querySelectorAll("[data-gp-action]").forEach((el) => (el.onclick = () => actions[el.dataset.gpAction]?.()));
@@ -786,31 +835,22 @@ setMode("free");
 const home = document.getElementById("home");
 const app = document.getElementById("app");
 
-function openApp(mode) {
+function openApp(mode, song) {
   home.hidden = true;
   app.hidden = false;
   window.GesturePiano.actions[mode]();
+  if (song !== undefined) window.GesturePiano.actions.play(Number(song)); // jump straight into a lesson
 }
 function openHome() {
   app.hidden = true;
   home.hidden = false;
 }
 document.querySelectorAll("[data-open]").forEach((el) => {
-  el.addEventListener("click", (e) => { e.preventDefault(); openApp(el.dataset.open); });
+  el.addEventListener("click", (e) => { e.preventDefault(); openApp(el.dataset.open, el.dataset.song); });
 });
 document.getElementById("homeBtn").addEventListener("click", openHome);
 
-// Waveform bars (values copied from your Figma CSS)
-const heights = [14.76,26.25,34.01,23.68,60.23,47.12,43.88,79.96,39.97,59.92,75.46,22.7,57.52,50.37,18.24,33.05,19.51,16.85,33.18,29.87,38.29,64.49,30.37,62.65,75.54,16.39,73.31,63.13,27.03,60.62,37.39,26.48,28.32,15.11,22.57,37.94,20.45,52.42,61.54,20.08,75.83,62.61,36.76,78.32,45.27,43.23,56.85,24.11];
-const opacities = [.35,.46,.56,.66,.75,.82,.88,.92,.94,.95,.93,.9,.85,.78,.7,.61,.51,.4,.41,.51,.62,.71,.79,.85,.9,.94,.95,.94,.92,.87,.81,.74,.65,.55,.45,.36,.47,.57,.67,.75,.83,.88,.92,.95,.95,.93,.9,.84];
-const wf = document.getElementById("waveform");
-heights.forEach((h, i) => {
-  const bar = document.createElement("span");
-  bar.className = "bar";
-  bar.style.height = h + "px";
-  bar.style.opacity = opacities[i];
-  wf.appendChild(bar);
-});
+
 // ----- Sign in screen -----
 const signin = document.getElementById("signin");
 
@@ -840,6 +880,10 @@ miniHeights.forEach((h, i) => {
   bar.style.opacity = miniOpacities[i];
   bar.style.animationDelay = i * 15 + "ms";
   miniWave.appendChild(bar);
+});
+document.getElementById("lessonBack").addEventListener("click", async () => {
+  await window.GesturePiano.actions.quit();
+  openHome();
 });
 </script>
 </body>

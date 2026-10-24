@@ -39,6 +39,7 @@
 }
 .tech-label.grey  { color: var(--muted); }
 .tech-label.purple { color: var(--purple); }
+.tech-label.teal   { color: #00C3D0; }
 
 .icon-18 { width: 18px; height: 18px; }
 .icon-20 { width: 20px; height: 20px; }
@@ -80,10 +81,11 @@
 .streak-value { font-size: 15px; line-height: 18px; font-weight: 600; }
 .streak-encouragement { font-size: 12px; line-height: 15px; color: var(--muted); }
 
-/* Mode cards */
-.modes { display: flex; gap: 24px; }
+/* Mode cards (3 across) */
+.modes { display: flex; gap: 21px; }
 .mode-card {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -91,24 +93,36 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
 }
 .mode-identity { display: flex; justify-content: space-between; align-items: center; }
-.mode-visualization {
-  position: relative;
-  height: 100px;
+.mode-title {
+  font-family: 'Inria Sans', sans-serif;
+  font-size: 30px;
+  line-height: 36px;
+  font-weight: 700;
+  color: var(--text);
+}
+.mode-visualization { display: flex; justify-content: center; align-items: center; height: 100px; }
+.mode-image { display: block; width: 100%; height: auto; border-radius: 8px; }
+.learn-card { gap: 56px; }              /* Learn card has bigger spacing in Figma */
+
+/* Instrument pills (Free play card) */
+.instrument-tabs { display: flex; justify-content: space-between; }
+.instrument {
+  width: 88px;
+  height: 34px;
   display: flex;
   justify-content: center;
   align-items: center;
-}
-.mode-description { display: flex; flex-direction: column; gap: 10px; }
-.mode-title { font-size: 30px; line-height: 36px; font-weight: 500; color: var(--text);}
-.mode-explanation { font-size: 14px; line-height: 1.6; color: var(--muted); }
-.mode-action { display: flex; justify-content: space-between; align-items: center; }
-.mode-metadata {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  line-height: 13px;
-  color: var(--dim);
+  background: #4F378A;
+  border-radius: 12px;
+  font-family: 'Inria Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
 }
 
 /* Melody notes */
@@ -127,21 +141,6 @@
 }
 .melody-note.active { height: 70px; background: var(--cyan); color: var(--bg); }
 
-/* Waveform */
-.sound-orbit {
-  position: absolute;
-  width: 260px;
-  height: 65px;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%) rotate(-9deg);
-  border: 1px solid var(--purple);
-  border-radius: 50%;
-  opacity: .7;
-}
-.waveform { position: relative; display: flex; align-items: center; gap: 3px; height: 82px; }
-.bar { width: 6.44px; background: var(--purple); border-radius: 2px; }
-
 /* Continue learning */
 .continue { display: flex; flex-direction: column; gap: 16px; }
 .section-heading { display: flex; justify-content: space-between; }
@@ -157,6 +156,8 @@
   border-radius: 16px;
 }
 .song-artwork {
+  position: relative;
+  flex: none;
   width: 92px;
   height: 92px;
   display: flex;
@@ -165,16 +166,21 @@
   background: #302A47;
   border-radius: 8px;
 }
-.monogram { font-size: 19px; color: var(--purple); }
-.song-info { display: flex; flex-direction: column; gap: 8px; width: 340px; }
+.album-orbit { position: absolute; border: 1px solid var(--purple); border-radius: 50%; }
+.album-orbit.a1 { width: 56px; height: 56px; left: 18px; top: 18px; }
+.album-orbit.a2 { width: 40px; height: 40px; left: 26px; top: 26px; }
+.album-orbit.a3 { width: 24px; height: 24px; left: 34px; top: 34px; }
+.monogram { position: relative; font-size: 19px; line-height: 23px; color: var(--purple); }
+.song-info { flex: 1; display: flex; flex-direction: column; gap: 8px; }
 .song-name { font-size: 22px; line-height: 27px; font-weight: 500; }
 .composer { font-size: 13px; line-height: 16px; color: var(--muted); }
+.current-lesson .button { flex: none; width: 447px; }
 
-.lesson-progress { flex: 1; display: flex; flex-direction: column; gap: 12px; }
-.progress-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
-.progress-percent { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--cyan); }
-.progress-track { height: 4px; background: var(--border); border-radius: 2px; }
-.progress-fill { width: 40%; height: 4px; background: var(--cyan); border-radius: 2px; }
+@media (max-width: 1000px) {
+  .modes { flex-direction: column; }
+  .current-lesson { flex-wrap: wrap; }
+  .current-lesson .button { width: 100%; }
+}
 
 /* ================= SIGN IN SCREEN ================= */
 #signin { min-height: 100vh; background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text); }
@@ -246,3 +252,128 @@
   .login { width: 100%; }
   .promise { font-size: 40px; }
 }
+
+/* ---------- Hand animation (Sign in screen) ---------- */
+@keyframes hand-enter {
+  from { opacity: 0; transform: translateY(24px) scale(.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes hand-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-12px) rotate(2deg); }
+}
+@keyframes hand-glow {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(164, 244, 237, 0)); }
+  50%      { filter: drop-shadow(0 0 18px rgba(164, 244, 237, .7)); }
+}
+@keyframes chip-pulse {
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(164, 244, 237, 0); }
+  8%       { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(164, 244, 237, .18); }
+  20%      { transform: scale(1);    box-shadow: 0 0 0 0 rgba(164, 244, 237, 0); }
+}
+
+.gesture img {
+  animation:
+    hand-enter .9s ease-out .3s backwards,
+    hand-float 5s ease-in-out 1.2s infinite,
+    hand-glow  5s ease-in-out 1.2s infinite;
+}
+.tone-chip { animation: chip-pulse 5s ease-out 1.2s infinite; }
+
+/* ================= GUIDED LESSON (lesson mode) ================= */
+/* Hidden unless the app has class "lesson" */
+.lesson-heading, .field-status, .hand-status, .gesture-indicator, .axis-label { display: none; }
+#app p.tech-label, .live-points p, .lesson-title h2 { margin: 0; }
+
+#app.lesson {
+  --color-bg: #090D14; --color-panel: #101620; --color-panel-2: #171E2A;
+  --color-text: #EDF3F8; --color-muted: #9BAABB;
+  --color-good: #A4F4ED; --color-gold: #A4F4ED;
+  min-height: 100vh; background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text);
+}
+#app.lesson button.primary { color: #090D14; }
+#app.lesson header h1, #app.lesson .stats, #app.lesson #homeBtn,
+#app.lesson #chords, #app.lesson #keys { display: none; }
+
+/* Heading */
+#app.lesson header { padding: 28px 56px 0; }
+#app.lesson .lesson-heading { display: flex; justify-content: space-between; align-items: center; width: 100%; height: 72px; }
+.song-identity { display: flex; align-items: center; gap: 20px; }
+.back-btn, .back-btn:hover { background: none; padding: 0; display: flex; }
+.lesson-title { display: flex; flex-direction: column; gap: 8px; }
+.lesson-title h2 { font-size: 30px; line-height: 36px; font-weight: 500; color: var(--text); }
+.song-settings { display: flex; align-items: center; gap: 24px; }
+.button-secondary, .button-secondary:hover { background: var(--surface-2); }
+
+/* Camera = performance field */
+#app.lesson main { flex-wrap: nowrap; gap: 24px; padding: 24px 56px; align-items: flex-start; }
+#app.lesson #stage {
+  flex: 1; min-width: 0; width: auto; max-width: none; height: 480px; aspect-ratio: auto;
+  background: radial-gradient(43% 42% at 52% 48%, #15353D 0%, #101923 65%, #090D14 100%);
+  border: 1px solid var(--border); border-radius: 16px;
+}
+#app.lesson #stage video { opacity: .8; }
+#app.lesson #stage video, #app.lesson #stage canvas { object-fit: contain; }
+#app.lesson #stage::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgba(38,49,64,.35) 0 1px, transparent 1px 50px),
+    repeating-linear-gradient(to right,  rgba(38,49,64,.22) 0 1px, transparent 1px 60px);
+  background-position: 0 50px, 30px 0;
+}
+.field-status, .hand-status, .gesture-indicator, .axis-label {
+  position: absolute; z-index: 2; font-family: 'IBM Plex Mono', monospace; font-size: 10px; line-height: 13px;
+}
+#app.lesson .field-status { display: flex; align-items: center; gap: 8px; left: 24px; top: 24px; color: var(--cyan); }
+.pulse, .ring { display: block; width: 6px; height: 6px; background: var(--cyan); animation: blink 1.4s infinite; }
+.ring { width: 12px; height: 12px; background: none; border: 1px solid var(--cyan); border-radius: 50%; animation: none; }
+@keyframes blink { 50% { opacity: .3; } }
+#app.lesson .hand-status { display: block; right: 24px; top: 24px; padding: 8px; background: var(--bg); border-radius: 4px; color: var(--cyan); }
+#app.lesson .gesture-indicator { display: flex; align-items: center; gap: 8px; left: 24px; bottom: 56px; color: var(--muted); }
+#app.lesson .axis-label { display: block; left: 24px; bottom: 32px; color: var(--dim); }
+
+/* Guidance panel */
+#app.lesson #panel {
+  flex: none; width: 336px; height: 480px; padding: 24px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+}
+#app.lesson #panel > :not(#songPanel) { display: none; }
+#app.lesson #songPanel { background: none; padding: 0; }
+#app.lesson #songPlay { display: flex; flex-direction: column; gap: 20px; }
+#app.lesson #songTitle, #app.lesson #target, #app.lesson #barWrap, #app.lesson #stepText,
+#app.lesson #songPlay > .muted:nth-last-child(2), #app.lesson #songPlay > .row { display: none; }
+
+.live-points { display: flex; justify-content: space-between; align-items: center; }
+.points-value { font-size: 36px; line-height: 44px; color: var(--text); }
+.combo { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px; background: #302A47; border-radius: 8px; }
+.combo-value { font-size: 20px; line-height: 24px; color: var(--purple); }
+.divider { height: 1px; background: var(--border); }
+
+#app.lesson #howRight { order: 1; margin: 0; font-size: 22px; line-height: 120%; font-weight: 500; color: var(--text); }
+#app.lesson #tChord   { order: 2; margin: 0; font-size: 13px; line-height: 160%; color: var(--muted); }
+#app.lesson #upnext   { order: 3; padding: 14px; background: var(--surface-2); border-radius: 8px; font-size: 12px; color: var(--muted); }
+#app.lesson #upnext::before { content: "↑  "; color: var(--purple); }
+
+/* Note timeline */
+#timeline {
+  margin: 0 56px 32px; padding: 18px 24px; display: flex; flex-direction: column; gap: 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+}
+.phrase-progress { display: flex; justify-content: space-between; align-items: center; }
+.phrase-title { display: flex; gap: 16px; }
+.timeline-key { display: flex; gap: 20px; font-size: 11px; }
+.hit-key { color: var(--cyan); } .up-key { color: var(--muted); }
+#notes { display: flex; align-items: center; gap: 10px; height: 76px; }
+.nm {
+  flex: 1; height: 48px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: var(--muted);
+}
+.nm small { font-size: 8px; line-height: 10px; }
+.nm.hit { background: #153A3C; color: var(--cyan); }
+.nm.now { height: 72px; background: var(--cyan); border-color: var(--cyan); color: #090D14; }
+
+/* Mirror the camera (video + hand dots together so they stay aligned) */
+#app.lesson { --mirror: -1; }   /* -1 = mirrored like a mirror, 1 = not mirrored */
+#app.lesson #stage video,
+#app.lesson #stage canvas { transform: scaleX(var(--mirror)); }
