@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MoveTune</title>
@@ -172,7 +171,7 @@
     <form id="signinForm">
   <div class="credentials">
     <!-- 1. Username Field (Kept exactly as you had it) -->
-    <div class="field">
+    <div class="field" id="usernameField" hidden>
       <label for="username">Username</label>
       <div class="input-box">
         <input id="username" type="text" placeholder="yourname" autocomplete="username" required>
@@ -193,6 +192,7 @@
       <div class="input-box">
         <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" minlength="6" required>
         <button type="button" class="eye" id="eyeBtn" aria-label="Show or hide password">
+          
           <img src="images/eye.svg" alt="">
         </button>
       </div>
@@ -333,7 +333,8 @@
       <div class="stat-box"><b>7</b><span>Day streak</span></div>
       <div class="stat-box"><b>0</b><span>Songs learned</span></div>
     </div>
-    <button type="button" class="button button-secondary" id="signOutBtn">Sign out</button>
+    <button type="button" id="signOutBtn" class="button button-secondary">Sign out</button>
+    
   </div>
 </div>
 <div id="app" hidden>
@@ -1007,7 +1008,7 @@ $("instrument").onchange = async (e) => { cur = e.target.value; $("lessonInstrum
  
 window.addEventListener("keydown", async (e) => {
   if (e.repeat || e.target.tagName === "SELECT") return;
-  const ci = ["z", "x", "c", "v", "b", "n"].indexOf(e.key.toLowerCase());
+  const ci = ["z", "x", "c", "v", "b", "n"].indexOf((e.key || "").toLowerCase());
   if (ci >= 0) { await ensureAudio(); setChord(CH[ci]); return; }
   const idx = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="].indexOf(e.key);
   if (idx >= 0) { await ensureAudio(); lastNote = null; handleNote(NOTES[idx]); }
@@ -1063,30 +1064,98 @@ document.querySelectorAll('[data-page="home"]').forEach((a) =>
 document.querySelector(".nav-profile").addEventListener("click", async (e) => {
   e.preventDefault(); await window.GesturePiano.actions.quit(); openProfile();
 });
-document.getElementById("signOutBtn").addEventListener("click", () => {
-  profile.hidden = true; siteNav.hidden = true; signin.hidden = false;
-});
- 
- 
+
+// ----- Supabase -----
+const SUPABASE_URL = "https://uolvjfuvdrspeqpzlyiz.supabase.co/";
+const SUPABASE_KEY = "sb_publishable_b3zvADI6ZsU7m9yvA_6fcA_UrJRLz5e";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 // ----- Sign in screen -----
 const signin = document.getElementById("signin");
- 
-document.getElementById("signinForm").addEventListener("submit", (e) => {
-  e.preventDefault();
+const form = document.getElementById("signinForm");
+const statusMsg = document.getElementById("status-message");
+const usernameField = document.getElementById("usernameField");
+const usernameInput = document.getElementById("username");
+const welcomeTitle = document.querySelector(".welcome-title");
+const submitLabel = form.querySelector("button[type=submit] span");
+const createPrompt = document.querySelector(".create-prompt");
+let mode = "signin"; // or "signup"
+
+function setMode(m) {
+  mode = m;
+  const creating = m === "signup";
+  usernameField.hidden = !creating;
+  usernameInput.required = creating;
+  welcomeTitle.textContent = creating ? "Create account" : "Sign in!";
+  submitLabel.textContent = creating ? "Create my studio" : "Enter your studio";
+  createPrompt.innerHTML = creating
+    ? 'Already have an account? <a href="#">Sign in</a>'
+    : 'New here? <a href="#">Create account</a>';
+  statusMsg.textContent = "";
+}
+
+createPrompt.addEventListener("click", (e) => {
+  if (e.target.tagName === "A") {
+    e.preventDefault();
+    setMode(mode === "signin" ? "signup" : "signin");
+  }
+});
+setMode("signin");
+
+function enterApp() {
   signin.hidden = true;
   home.hidden = false;
-  siteNav.hidden = false;   // <- add
-  setActive("home");        // <- add
+  siteNav.hidden = false;
+  setActive("home");
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  statusMsg.style.color = "";
+  statusMsg.textContent = "Working…";
+
+  const { data, error } = mode === "signup"
+    ? await sb.auth.signUp({
+        email, password,
+        options: { data: { username: usernameInput.value.trim() } }
+      })
+    : await sb.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    statusMsg.style.color = "#ff8a8a";
+    statusMsg.textContent = error.message;
+    return;
+  }
+  if (mode === "signup" && !data.session) {
+    statusMsg.textContent = "Check your email to confirm your account, then sign in.";
+    return;
+  }
+  enterApp();
 });
+
+// Sign out
+document.getElementById("signOutBtn").addEventListener("click", async () => {
+  await sb.auth.signOut();
+  profile.hidden = true; siteNav.hidden = true; signin.hidden = false;
+});
+
+// Stay logged in after a page refresh
+sb.auth.getSession().then(({ data }) => {
+  if (data.session) enterApp();
+});
+ 
+// ----- Sign in screen -----
+
+
  
 document.getElementById("eyeBtn").addEventListener("click", () => {
   const p = document.getElementById("password");
   p.type = p.type === "password" ? "text" : "password";
 });
  
-document.querySelectorAll(".reset, .create-prompt a").forEach((a) =>
-  a.addEventListener("click", (e) => e.preventDefault())
-);
+
 
 
  
