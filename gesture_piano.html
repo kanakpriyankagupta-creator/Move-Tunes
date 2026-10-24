@@ -357,6 +357,7 @@
     </div>
   </div>
   <div class="song-settings">
+    <p class="tech-label grey">INSTRUMENT: <span data-gp-bind="instrumentName">PIANO</span></p>
     <select id="lessonInstrument" class="lesson-select" aria-label="Instrument"><option value="piano">Piano</option><option value="guitar">Guitar</option><option value="violin">Violin</option><option value="flute">Flute</option><option value="organ">Organ</option><option value="marimba">Marimba</option><option value="harp">Harp</option><option value="bells">Bells</option><option value="synth">Synth</option></select>
     <button type="button" class="button button-secondary" data-gp-action="quit">Quit lesson</button>
   </div>
@@ -379,6 +380,7 @@
 <div class="hand-status">RIGHT HAND: <span data-gp-bind="rightTxt">not seen</span></div>
 <div class="gesture-indicator"><i class="ring"></i><span>TARGET NOTE <b data-gp-bind="targetNote">-</b></span></div>
 <p class="axis-label">AXIS LABEL</p>
+<div class="feedback-accent" id="timingFeedback"><span>✦</span><span id="timingText"></span></div>
 <div id="outWave" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 <div id="keys" data-component="note-keys" role="group" aria-label="The 12 notes. Right-hand gesture for each is in the gesture map."></div>
   </div>
@@ -894,7 +896,13 @@ async function finishSong() {
   $("overlay").classList.add("show");
   markTarget(null); emit("songend", { title: sg.title, points, stars });
 }
- 
+let fbTimer;
+function showTiming(text) {
+  $("timingText").textContent = text;
+  $("timingFeedback").classList.add("show");
+  clearTimeout(fbTimer);
+  fbTimer = setTimeout(() => $("timingFeedback").classList.remove("show"), 1200);
+}
 function handleNote(n) {
   if (n === lastNote) return;
   lastNote = n;
@@ -906,6 +914,7 @@ function handleNote(n) {
     combo += 1; correct += 1;
     const bonus = Math.max(0, Math.round(50 - ((performance.now() - stepStart) / 1000) * 10));
     const gain = learn ? 0 : 100 * mult() + bonus;
+    showTiming(bonus >= 40 ? "Perfect timing" : bonus >= 20 ? "Good timing" : "Keep going");
     points += gain; playNote(n);
     pop(learn ? "Good" : "+" + gain, "good");
     step += 1; stepStart = performance.now(); updateHud();

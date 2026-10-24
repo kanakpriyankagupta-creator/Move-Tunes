@@ -20,22 +20,7 @@
     <section class="layout">
       <section class="game-card" aria-label="Game">
         <div class="game-heading"><span>Blast the notes before they reach the line</span><span id="game-status">Ready</span></div>
-        <div class="game-stage">
-          <canvas id="game-canvas" width="900" height="560"></canvas>
-          <section id="results-screen" class="results-screen" aria-labelledby="results-title" aria-live="polite" hidden>
-            <div class="results-panel">
-              <p class="results-kicker">RUN COMPLETE</p>
-              <h2 id="results-title">Nice run!</h2>
-              <p id="results-message" class="results-message">You kept the notes flowing.</p>
-              <div class="results-stats">
-                <div><span>Final score</span><b id="final-score">0</b></div>
-                <div><span>Time played</span><b id="final-time">0:00</b></div>
-                <div><span>Personal best</span><b id="final-best">0</b></div>
-              </div>
-              <button id="results-play-again" class="primary">Play again</button>
-            </div>
-          </section>
-        </div>
+        <canvas id="game-canvas" width="900" height="560"></canvas>
         <div class="game-actions"><button id="start-button" class="primary">Start game</button><span>Show the matching hand gesture to blast a note. Make a fist to reset.</span></div>
       </section>
 
