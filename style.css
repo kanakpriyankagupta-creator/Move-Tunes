@@ -377,3 +377,26 @@
 #app.lesson { --mirror: -1; }   /* -1 = mirrored like a mirror, 1 = not mirrored */
 #app.lesson #stage video,
 #app.lesson #stage canvas { transform: scaleX(var(--mirror)); }
+
+/* ---------- Lesson page tweaks ---------- */
+/* 1. remove the grid lines drawn over the camera */
+#app.lesson #stage::after { display: none; }
+/* 2. camera fills the whole rectangle (crops the edges instead of leaving black bars) */
+#app.lesson #stage video, #app.lesson #stage canvas { object-fit: cover; }
+#app.lesson #stage video { opacity: 1; }
+/* 3. hide the red REC badge */
+#recBadge { display: none !important; }
+/* 4. instrument drop-down in the lesson heading */
+.lesson-select {
+  height: 48px;
+  padding: 0 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lesson-select:focus { outline: 0; border-color: var(--cyan); }

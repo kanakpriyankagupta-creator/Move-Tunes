@@ -287,7 +287,7 @@
     </div>
   </div>
   <div class="song-settings">
-    <p class="tech-label grey" data-gp-bind="instrumentName">PIANO</p>
+    <select id="lessonInstrument" class="lesson-select" aria-label="Instrument"><option value="piano">Piano</option><option value="guitar">Guitar</option><option value="violin">Violin</option><option value="flute">Flute</option><option value="organ">Organ</option><option value="marimba">Marimba</option><option value="harp">Harp</option><option value="bells">Bells</option><option value="synth">Synth</option></select>
     <button type="button" class="button button-secondary" data-gp-action="quit">Quit lesson</button>
   </div>
 </div>
@@ -316,7 +316,7 @@
 
     <label class="card split" data-component="instrument-picker">
       <span>Instrument</span>
-      <select id="instrument"><option value="piano">Piano</option><option value="guitar">Guitar</option><option value="violin">Violin</option></select>
+      <select id="instrument"><option value="piano">Piano</option><option value="guitar">Guitar</option><option value="violin">Violin</option><option value="flute">Flute</option><option value="organ">Organ</option><option value="marimba">Marimba</option><option value="harp">Harp</option><option value="bells">Bells</option><option value="synth">Synth</option></select>
     </label>
 
     <div class="tabs" role="tablist" data-component="mode-tabs">
@@ -455,10 +455,16 @@ const SONGS = [
   mk("Ode to Joy", "C: E E F G G F E D|C: C C D E|G: E D D|C: E E F G G F E D|C: C C D E|G: D|C: C C", true),
   mk("Jingle Bells (chorus)", "C: E E E|C: E E E|C: E G C D E|F: F F F F F E E E E|G: E D D E D G", true),
   mk("Au Clair de la Lune", "C: C C C D E D|G: C E D D|C: C", true),
+    mk("Lightly Row", "C: G E E|G: F D D|C: C D E F|C: G G G|C: G E E|G: F D D|C: C E G G C", true),
+  mk("Three Blind Mice (first half)", "C: E D C|C: E D C|G: G F F E|G: G F F E", true),
+  mk("Frere Jacques (simple)", "C: C D E C|C: C D E C|C: E F G|C: E F G|C: G F G F E C|C: G F G F E C|C: C E C|C: C E C", true),
+  mk("Skips", "C: C E G E C|G: D F G F D", false),
+  mk("Chord switch", "C: C E G|G: D G F|F: C F E|C: C", false),
+  mk("Speed run", "C: C D E F G G F E D C|C: C E G E C", false),
 ];
 const chordsOf = (sg) => [...new Set(sg.steps.map((s) => s.c))];
 const drills = SONGS.filter((s) => !s.pop);
-const unlocked = (sg) => sg.pop || drills.indexOf(sg) === 0 || (save.stars[drills[drills.indexOf(sg) - 1].title] || 0) >= 1;
+const unlocked = (sg) => mode === "learn" || sg.pop || drills.indexOf(sg) === 0 || (save.stars[drills[drills.indexOf(sg) - 1].title] || 0) >= 1;
 
 // ---------- helpers, events, Figma bindings ----------
 const $ = (id) => document.getElementById(id);
@@ -539,6 +545,25 @@ async function ensureAudio() {
   inst.piano = (n, t, d) => piano.triggerAttackRelease(n, d, t);
   inst.violin = (n, t, d) => violin.triggerAttackRelease(n, d, t);
   inst.guitar = (n, t) => pool[pi++ % pool.length].triggerAttack(n, t);
+    // ---- more instruments ----
+  const fluteVib = new Tone.Vibrato(5, 0.08).connect(master);
+  const flute = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.08, decay: 0.1, sustain: 0.9, release: 0.5 } }).connect(fluteVib);
+  const organ = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "square" }, envelope: { attack: 0.02, decay: 0.1, sustain: 0.9, release: 0.3 } }).connect(new Tone.Filter(1800, "lowpass").connect(master));
+  organ.volume.value = -14;
+  const marimba = new Tone.PolySynth(Tone.FMSynth, { harmonicity: 3.01, modulationIndex: 14, oscillator: { type: "triangle" }, envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.4 }, modulation: { type: "square" }, modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 } }).connect(master);
+  marimba.volume.value = -8;
+  const bells = new Tone.PolySynth(Tone.FMSynth, { harmonicity: 8, modulationIndex: 2, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 2, sustain: 0.1, release: 2 }, modulation: { type: "square" }, modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 } }).connect(master);
+  bells.volume.value = -14;
+  const synth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "fatsawtooth", count: 3, spread: 20 }, envelope: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 0.8 } }).connect(new Tone.Filter(2200, "lowpass").connect(master));
+  synth.volume.value = -14;
+  const harpPool = Array.from({ length: 8 }, () => new Tone.PluckSynth({ attackNoise: 0.6, dampening: 6000, resonance: 0.985 }).connect(master));
+  let hi = 0;
+  inst.flute = (n, t, d) => flute.triggerAttackRelease(n, d, t);
+  inst.organ = (n, t, d) => organ.triggerAttackRelease(n, d, t);
+  inst.marimba = (n, t, d) => marimba.triggerAttackRelease(n, d, t);
+  inst.bells = (n, t, d) => bells.triggerAttackRelease(n, d, t);
+  inst.synth = (n, t, d) => synth.triggerAttackRelease(n, d, t);
+  inst.harp = (n, t) => harpPool[hi++ % harpPool.length].triggerAttack(n, t);
 }
 const logEv = (o) => { if (rec) recEvents.push({ t: Math.round(performance.now() - recT0), ...o }); };
 function playNote(n) {
@@ -811,7 +836,8 @@ const actions = {
 document.querySelectorAll("[data-gp-action]").forEach((el) => (el.onclick = () => actions[el.dataset.gpAction]?.()));
 $("goBtn").onclick = () => startSong(songIdx);
 $("backBtn").onclick = () => { prep = false; renderSong(); mark(); };
-$("instrument").onchange = async (e) => { cur = e.target.value; await ensureAudio(); inst[cur]("C4", Tone.now(), "4n"); emit("instrument", cur); };
+$("lessonInstrument").onchange = (e) => window.GesturePiano.setInstrument(e.target.value);
+$("instrument").onchange = async (e) => { cur = e.target.value; $("lessonInstrument").value = cur; await ensureAudio(); inst[cur]("C4", Tone.now(), "4n"); emit("instrument", cur); };
 
 window.addEventListener("keydown", async (e) => {
   if (e.repeat || e.target.tagName === "SELECT") return;
