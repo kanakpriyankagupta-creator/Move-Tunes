@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MoveTune</title>
@@ -168,33 +170,49 @@
     </div>
  
     <form id="signinForm">
-      <div class="credentials">
-        <div class="field">
-          <label for="username">Username</label>
-<div class="input-box">
-  <input id="username" type="text" placeholder="yourname" autocomplete="username">
-</div>
-        </div>
-        <div class="field">
-          <label for="password">Password</label>
-          <div class="input-box">
-            <input id="password" type="password" placeholder="••••••••" autocomplete="current-password">
-            <button type="button" class="eye" id="eyeBtn" aria-label="Show or hide password">
-              <img src="images/eye.svg" alt="">
-            </button>
-          </div>
-        </div>
-        <div class="prefs">
-          <label class="remember"><input type="checkbox" checked> Remember me</label>
-          <a href="#" class="reset">Reset password</a>
-        </div>
+  <div class="credentials">
+    <!-- 1. Username Field (Kept exactly as you had it) -->
+    <div class="field">
+      <label for="username">Username</label>
+      <div class="input-box">
+        <input id="username" type="text" placeholder="yourname" autocomplete="username" required>
       </div>
-      <button type="submit" class="button button-primary">
-        <img src="images/arrow-right-dark.svg" alt="" class="icon-18">
-        <span>Enter your studio</span>
-      </button>
-    </form>
- 
+    </div>
+
+    <!-- 2. Email Field (ADDED: Required by Supabase) -->
+    <div class="field">
+      <label for="email">Email</label>
+      <div class="input-box">
+        <input id="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+      </div>
+    </div>
+
+    <!-- 3. Password Field (Kept exactly as you had it) -->
+    <div class="field">
+      <label for="password">Password</label>
+      <div class="input-box">
+        <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" minlength="6" required>
+        <button type="button" class="eye" id="eyeBtn" aria-label="Show or hide password">
+          <img src="images/eye.svg" alt="">
+        </button>
+      </div>
+    </div>
+
+    <div class="prefs">
+      <label class="remember"><input type="checkbox" checked> Remember me</label>
+      <a href="#" class="reset">Reset password</a>
+    </div>
+  </div>
+
+  <button type="submit" class="button button-primary">
+    <img src="images/arrow-right-dark.svg" alt="" class="icon-18">
+    <span>Enter your studio</span>
+  </button>
+
+  <!-- 4. Status Message (ADDED: Shows errors or success) -->
+  <p id="status-message" style="margin-top: 12px; font-size: 14px; text-align: center;"></p>
+</form>
+
     <p class="create-prompt">New here? <a href="#">Create account</a></p>
     <p class="privacy">Your hands. Your sound. We ask permission for your camera.</p>
   </section>
@@ -1088,6 +1106,22 @@ document.getElementById("lessonBack").addEventListener("click", async () => {
   await window.GesturePiano.actions.quit();
   openHome();
 });
+</script>
+<script>
+function openLearnScreen() {
+    const home = document.getElementById("home");
+    const nextScreen = document.getElementById("app");
+
+    // Enlarge the current screen
+    home.classList.add("zoom-out");
+
+    // Show the next screen after the animation
+    setTimeout(() => {
+        home.style.display = "none";
+        nextScreen.style.display = "block";
+        nextScreen.classList.add("screen-enter");
+    }, 500);
+}
 </script>
 </body>
 </html>
