@@ -31,31 +31,27 @@ function recognizeGesture(p) {
   // Thumb is "out" when its tip is away from the index knuckle and the pinky side of the palm.
   const thumb = d(p[4], p[5]) / palm > 0.55 && d(p[4], p[17]) > d(p[3], p[17]);
   const thumbDy = (p[4].y - p[2].y) / palm;              // negative = pointing up on screen
-  const pinch = d(p[4], p[8]) / palm < 0.35;             // thumb tip touching index tip
-
-  if (pinch && middle && ring && pinky) return "okSign";
-
   const count = [index, middle, ring, pinky].filter(Boolean).length;
+
+  // Hand turned sideways? (wrist -> middle knuckle points more left/right than up/down)
+  const sideways = Math.abs(p[9].x - p[0].x) > Math.abs(p[9].y - p[0].y);
+  const withTilt = (name) => (sideways ? name + "Tilt" : name);
 
   if (!thumb) {
     if (count === 0) return "fist";
-    if (index && !middle && !ring && !pinky) return "oneFinger";
-    if (index && middle && !ring && !pinky) return "twoFingers";
-    if (index && middle && ring && !pinky) return "threeFingers";
-    if (count === 4) return "fourFingers";
-    if (index && pinky && !middle && !ring) return "rockSign";
+    if (index && !middle && !ring && !pinky) return withTilt("oneFinger");
+    if (index && middle && !ring && !pinky) return withTilt("twoFingers");
+    if (index && middle && ring && !pinky) return withTilt("threeFingers");
+    if (count === 4) return withTilt("fourFingers");
     return null;
   }
 
-  if (count === 4) return "fiveFingers";
+  if (count === 4) return withTilt("fiveFingers");
   if (count === 0) {
     if (thumbDy < -0.45) return "thumbUp";
     if (thumbDy > 0.45) return "thumbDown";
     return null;
   }
-  if (pinky && !index && !middle && !ring) return "shakaSign";
-  if (index && middle && !ring && !pinky) return "thumbIndexMiddle";
-  if (index && pinky && !middle && !ring) return "loveSign";
   return null;
 }
 

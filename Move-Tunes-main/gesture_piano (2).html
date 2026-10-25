@@ -1200,6 +1200,7 @@ function setMode(m) {
   $("freePanel").hidden = m !== "free";
   $("songPanel").hidden = m !== "learn" && m !== "game";
   $("libPanel").hidden = m !== "lib";
+    $("app").classList.toggle("library", m === "lib");
   $("gestureMap").hidden = m === "lib";
   $("scoreHelp").hidden = m === "free" || m === "lib";
   points = 0; combo = 0; updateHud(); renderSong(); mark();

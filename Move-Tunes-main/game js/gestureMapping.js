@@ -1,33 +1,24 @@
 // Gesture label -> note name (must match names in notes.js).
 // "fist" is intentionally missing: it means stop / no sound.
+// "Tilt" = the same finger count with the hand turned sideways (the sharp notes).
 export const GESTURE_TO_NOTE = {
-  oneFinger: "C",
-  twoFingers: "D",
-  threeFingers: "E",
-  fourFingers: "F",
-  fiveFingers: "G",
-  thumbDown: "A",
-  thumbUp: "B",
-  loveSign: "C♯",
-  rockSign: "D♯",
-  okSign: "F♯",
-  shakaSign: "G♯",
-  thumbIndexMiddle: "A♯"
+  twoFingers: "C",   twoFingersTilt: "C♯",
+  threeFingers: "D", threeFingersTilt: "D♯",
+  thumbDown: "E",
+  fourFingers: "F",  fourFingersTilt: "F♯",
+  fiveFingers: "G",  fiveFingersTilt: "G♯",
+  oneFinger: "A",    oneFingerTilt: "A♯",
+  thumbUp: "B"
 };
 
 // Friendly names shown in the "Detected gesture" box.
 export const GESTURE_LABELS = {
-  oneFinger: "Index finger",
-  twoFingers: "Two fingers",
-  threeFingers: "Three fingers",
-  fourFingers: "Four fingers",
-  fiveFingers: "Five fingers",
+  twoFingers: "2 fingers",     twoFingersTilt: "2 fingers, tilted",
+  threeFingers: "3 fingers",   threeFingersTilt: "3 fingers, tilted",
   thumbDown: "Thumbs down",
+  fourFingers: "4 fingers",    fourFingersTilt: "4 fingers, tilted",
+  fiveFingers: "5 fingers",    fiveFingersTilt: "5 fingers, tilted",
+  oneFinger: "1 finger",       oneFingerTilt: "1 finger, tilted",
   thumbUp: "Thumbs up",
-  loveSign: "I love you",
-  rockSign: "Rock sign",
-  okSign: "OK sign",
-  shakaSign: "Shaka (thumb + pinky)",
-  thumbIndexMiddle: "Thumb + index + middle",
   fist: "Fist (stop)"
 };
