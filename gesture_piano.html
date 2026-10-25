@@ -799,12 +799,40 @@ try { const s = JSON.parse(localStorage.getItem("gesturePianoSave")); if (s) sav
 const persist = () => { try { localStorage.setItem("gesturePianoSave", JSON.stringify(save)); } catch (e) {} };
  
 // ---------- recordings database (IndexedDB). Swap these 4 methods for Firebase/Supabase to sync to the cloud ----------
+// ---------- recordings: details in the "recordings" table, video file in Storage ----------
 const db = {
-  open() { return this.p || (this.p = new Promise((ok, no) => { const r = indexedDB.open("gesturePiano", 1); r.onupgradeneeded = () => r.result.createObjectStore("rec", { keyPath: "id", autoIncrement: true }); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); })); },
-  async tx(m, f) { const d = await this.open(); return new Promise((ok, no) => { const t = d.transaction("rec", m); const q = f(t.objectStore("rec")); t.oncomplete = () => ok(q.result); t.onerror = () => no(t.error); }); },
-  add(o) { return this.tx("readwrite", (s) => s.add(o)); },
-  all() { return this.tx("readonly", (s) => s.getAll()); },
-  del(id) { return this.tx("readwrite", (s) => s.delete(id)); },
+  async add(o) {
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) throw new Error("Please sign in first");
+    const ext = o.blob.type.includes("mp4") ? "mp4" : "webm";
+    const path = `${user.id}/${Date.now()}.${ext}`;
+    const up = await sb.storage.from("recordings").upload(path, o.blob, { contentType: o.blob.type });
+    if (up.error) throw up.error;
+    const { error } = await sb.from("recordings").insert({
+      user_id: user.id, title: o.title, mode: o.mode, instrument: o.instrument,
+      score: o.score || 0, stars: o.stars || 0, has_video: !!o.hasVideo,
+      mime_type: o.blob.type, file_path: path, events: o.events,
+    });
+    if (error) throw error;
+  },
+  async all() {
+    const { data, error } = await sb.from("recordings").select("*").order("created_at", { ascending: false });
+    if (error) throw error;
+    return data.map((r) => ({
+      id: r.id, title: r.title, mode: r.mode, instrument: r.instrument,
+      score: r.score, stars: r.stars, path: r.file_path, mime: r.mime_type,
+      date: new Date(r.created_at).getTime(),
+    }));
+  },
+  async url(path) {
+    const { data, error } = await sb.storage.from("recordings").createSignedUrl(path, 3600);
+    if (error) throw error;
+    return data.signedUrl;
+  },
+  async del(r) {
+    await sb.storage.from("recordings").remove([r.path]);
+    await sb.from("recordings").delete().eq("id", r.id);
+  },
 };
  
 // ---------- state ----------
@@ -954,10 +982,15 @@ async function renderLib() {
     d.innerHTML = `<div><b>${r.title}</b><div class="muted">${new Date(r.date).toLocaleString()} - ${r.instrument}${r.score ? " - " + r.score + " pts" : ""}</div></div><div class="row" style="margin:0"></div>`;
     const bx = d.querySelector(".row");
     const add = (t, f) => { const b = document.createElement("button"); b.textContent = t; b.onclick = f; bx.appendChild(b); };
-    add("Watch", () => { $("viewVid").src = URL.createObjectURL(r.blob); $("viewer").showModal(); });
-    add("Download", () => { const a = document.createElement("a"); a.href = URL.createObjectURL(r.blob); a.download = `${r.title}.${r.blob.type.includes("mp4") ? "mp4" : "webm"}`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); });
-    add("Delete", async () => { await db.del(r.id); renderLib(); });
-    el.appendChild(d);
+    add("Watch", async () => { $("viewVid").src = await db.url(r.path); $("viewer").showModal(); });
+add("Download", async () => {
+  const blob = await (await fetch(await db.url(r.path))).blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${r.title}.${r.mime && r.mime.includes("mp4") ? "mp4" : "webm"}`;
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+});
+add("Delete", async () => { await db.del(r); renderLib(); });
   });
 }
 $("closeView").onclick = () => $("viewer").close();
@@ -1072,6 +1105,13 @@ async function finishSong() {
     save.total += points;
   }
   persist(); updateHud();
+  sb.rpc("record_session", {
+  p_song: sg.title,
+  p_mode: learn ? "learn" : "game",
+  p_points: learn ? 0 : points,
+  p_stars: stars,
+  p_accuracy: Math.round((acc || 0) * 10000) / 100,
+}).then(({ error }) => { if (error) console.warn("Could not save progress:", error.message); });
   if (rec) { rec.meta.score = learn ? 0 : points; rec.meta.stars = stars; }
   await stopRec(true);
   $("stars").textContent = learn ? "✓" : "★".repeat(stars) + "☆".repeat(3 - stars);
@@ -1189,11 +1229,16 @@ const actions = {
   menu: () => { $("overlay").classList.remove("show"); points = 0; combo = 0; updateHud(); renderSong(); },
 };
 document.querySelectorAll("[data-gp-action]").forEach((el) => (el.onclick = () => actions[el.dataset.gpAction]?.()));
-$("goBtn").onclick = () => startSong(songIdx);
-$("backBtn").onclick = () => { prep = false; renderSong(); mark(); };
-$("lessonInstrument").onchange = (e) => window.GesturePiano.setInstrument(e.target.value);
-$("instrument").onchange = async (e) => { cur = e.target.value; $("lessonInstrument").value = cur; await ensureAudio(); inst[cur]("C4", Tone.now(), "4n"); emit("instrument", cur); };
- 
+$("favBtn").onclick = async () => {
+  const sg = pickedSong(); if (!sg) return;
+  save.favs = save.favs.includes(sg.title) ? save.favs.filter((t) => t !== sg.title) : [...save.favs, sg.title];
+  persist(); renderSongs();
+  const { data: { user } } = await sb.auth.getUser();
+  if (user) await sb.from("song_progress").upsert(
+    { user_id: user.id, song_title: sg.title, is_favorite: save.favs.includes(sg.title) },
+    { onConflict: "user_id,song_title" }
+  );
+};
 window.addEventListener("keydown", async (e) => {
   if (e.repeat || e.target.tagName === "SELECT") return;
   const ci = ["z", "x", "c", "v", "b", "n"].indexOf((e.key || "").toLowerCase());
@@ -1203,9 +1248,26 @@ window.addEventListener("keydown", async (e) => {
 });
  
 // Public API for a Figma-built front end: GesturePiano.on("note" | "chord" | "score" | "songstart" | "songend" | "mode" | "instrument" | "recording", fn)
+async function loadSave() {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return;
+  const [prog, prof] = await Promise.all([
+    sb.from("song_progress").select("*"),
+    sb.from("profiles").select("total_points").eq("id", user.id).single(),
+  ]);
+  const s = { best: {}, stars: {}, learned: {}, favs: [], total: (prof.data && prof.data.total_points) || 0 };
+  (prog.data || []).forEach((r) => {
+    s.best[r.song_title] = r.best_score;
+    s.stars[r.song_title] = r.stars;
+    if (r.learned) s.learned[r.song_title] = 1;
+    if (r.is_favorite) s.favs.push(r.song_title);
+  });
+  save = s; persist();          // persist() keeps the Profile page in sync too
+  updateHud(); renderSongs();
+}
 window.GesturePiano = {
   on: (t, f) => bus.addEventListener(t, (e) => f(e.detail)),
-  actions, songs: SONGS, chords: CHORDS, gestures: CH,
+  actions,loadSave, songs: SONGS, chords: CHORDS, gestures: CH,
   setInstrument: (n) => { $("instrument").value = n; $("instrument").onchange({ target: { value: n } }); },
   get state() { return { mode, playing, curChord, instrument: cur, points, combo, level: level() }; },
 };
@@ -1330,12 +1392,20 @@ createPrompt.addEventListener("click", (e) => {
 });
 setMode("signin");
 
-function enterApp() {
+async function enterApp() {
   signin.hidden = true;
   home.hidden = false;
   siteNav.hidden = false;
   setActive("home");
+  if (window.GesturePiano) await window.GesturePiano.loadSave();
   renderProfile();
+  loadStreak();
+}
+
+async function loadStreak() {
+  const { data } = await sb.from("user_streaks").select("current_streak").maybeSingle();
+  const n = (data && data.current_streak) || 0;
+  document.querySelector(".streak-value").textContent = n + " day streak";
 }
 
 form.addEventListener("submit", async (e) => {
@@ -1366,6 +1436,7 @@ form.addEventListener("submit", async (e) => {
 
 // Sign out
 document.getElementById("signOutBtn").addEventListener("click", async () => {
+  localStorage.removeItem("gesturePianoSave");
   await sb.auth.signOut();
   profile.hidden = true; siteNav.hidden = true; signin.hidden = false;
 });
@@ -1474,6 +1545,8 @@ document.getElementById("pfForm").addEventListener("submit", async (e) => {
   if (error) { msg.style.color = "#ff8a8a"; msg.textContent = error.message; return; }
   msg.textContent = "Saved!";
   renderProfile();
+  const { data: { user } } = await sb.auth.getUser();
+await sb.from("profiles").update({ username: name }).eq("id", user.id);
 });
 </script>
 <script>
