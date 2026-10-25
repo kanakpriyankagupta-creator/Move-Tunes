@@ -417,3 +417,98 @@
   color: var(--cyan); font-size: 14px; font-weight: 600;
 }
 #app.lesson .feedback-accent.show { display: flex; }
+
+/* ===== Dark futuristic theme ===== */
+body {
+  background:
+    radial-gradient(900px 500px at 85% -10%, rgba(124,77,255,.28), transparent 60%),
+    radial-gradient(800px 500px at -10% 110%, rgba(0,229,255,.16), transparent 60%),
+    var(--color-bg);
+  background-attachment: fixed;
+}
+* { scrollbar-color: #2a3a7a #05070f; }
+:focus-visible { outline-color: var(--color-neon); }
+h1, h2, .brand, .stat b, #resultScore, #target, .gname { font-family: "Orbitron", var(--font-ui); }
+h1 { text-shadow: 0 0 18px rgba(0,229,255,.45); }
+
+/* glowing glass panels */
+.card, .stat, #result, dialog {
+  background: rgba(12,18,38,.78);
+  border: 1px solid rgba(0,229,255,.22);
+  box-shadow: 0 0 22px rgba(0,229,255,.07), inset 0 0 18px rgba(124,77,255,.06);
+  backdrop-filter: blur(6px);
+}
+.chip { background: rgba(12,18,38,.78); }
+
+/* buttons */
+button, select { border: 1px solid rgba(0,229,255,.25); }
+button:hover { background: #1f2b5c; box-shadow: 0 0 14px rgba(0,229,255,.35); }
+button.primary { background: linear-gradient(135deg, var(--color-accent), #4f8cff); border-color: transparent; color: #fff; }
+button.primary:hover { background: linear-gradient(135deg, #9a85ff, #6fa3ff); }
+.tabs button[aria-selected="true"] { background: var(--color-neon); color: #05070f; box-shadow: 0 0 16px rgba(0,229,255,.5); }
+option { background: #0c1226; color: #e6f1ff; }
+
+/* note keys */
+.key { background: #0a0f24; box-shadow: 0 0 14px color-mix(in srgb, var(--kc) 30%, transparent); }
+.key.sharp { background: #050814; }
+.key.target, .key.down { background: var(--kc); color: #05070f; }
+.key.target { box-shadow: 0 0 0 2px #fff, 0 0 24px var(--kc); }
+#app #startBtn { background: linear-gradient(135deg, #7c4dff, #00b7d4); box-shadow: 0 0 30px rgba(0,229,255,.4); }
+#app #startBtn:hover { background: linear-gradient(135deg, #9a7bff, #19d3ee); }
+
+/* progress bars */
+#xp, #barWrap { background: #060a18; }
+.fi i { background: #1b2550; }
+#xpFill { background: linear-gradient(90deg, var(--color-neon), var(--color-accent)); box-shadow: 0 0 10px var(--color-neon); }
+#bar { background: linear-gradient(90deg, var(--color-neon), var(--color-good)); box-shadow: 0 0 10px var(--color-good); }
+
+/* popups */
+#overlay { background: rgba(3,5,14,.88); }
+dialog::backdrop { background: rgba(3,5,14,.88); }
+
+/* top navigation */
+.site-nav { background: rgba(5,7,15,.85); border-bottom: 1px solid rgba(0,229,255,.25); box-shadow: 0 4px 24px rgba(0,229,255,.08); backdrop-filter: blur(8px); }
+.nav-links a:hover { background: var(--color-panel-2); color: var(--color-text); }
+.nav-links a.active { background: var(--color-neon); color: #05070f; box-shadow: 0 0 14px rgba(0,229,255,.5); }
+.avatar { background: linear-gradient(135deg, var(--color-accent), var(--color-neon)); }
+
+/* gesture map: collapsible title */
+#gestureMap summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+#gestureMap summary::-webkit-details-marker { display: none; }
+#gestureMap summary::after { content: "▾"; color: var(--color-neon); transition: transform .2s; }
+#gestureMap details:not([open]) summary::after { transform: rotate(-90deg); }
+/* ----- Song briefing pop-up ("I'm ready" screen) ----- */
+#songPrep:not([hidden]) {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 20; width: min(720px, 92vw); max-height: 85vh; overflow-y: auto;
+  padding: 24px; background: var(--color-panel, #0c1226); border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  box-shadow: 0 0 0 100vmax rgba(5, 7, 15, .82);   /* dims everything behind it */
+}
+
+/* ----- Gesture map pop-up ----- */
+.gesture-dialog { width: min(820px, 94vw); max-height: 88vh; overflow-y: auto; }
+.gesture-dialog::backdrop { background: rgba(5, 7, 15, .82); }
+/* ===== Library page: recordings only ===== */
+#app.library header,
+#app.library .bar-title,
+#app.library #chords,
+#app.library #stage { display: none; }                 /* no camera, header or chord bar */
+
+#app.library main { display: block; max-width: 1100px; margin: 0 auto; padding: 32px var(--space-page) 48px; }
+#app.library #panel { width: 100%; }
+#app.library #panel > :not(#libPanel) { display: none; }   /* hides instrument, tabs, live reading, gesture map */
+
+/* plain page instead of a glass card */
+#app.library #libPanel { background: none; border: 0; box-shadow: none; backdrop-filter: none; padding: 0; }
+#app.library #libPanel > .how { font-family: "Orbitron", var(--font-ui); font-size: 32px; font-weight: 800; margin-bottom: 4px; }
+
+/* recordings as a grid of cards */
+#app.library #libList { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 20px; }
+#app.library .rec {
+  flex-direction: column; align-items: stretch; gap: 16px; padding: 18px;
+  background: rgba(12, 18, 38, .78); border: 1px solid rgba(0, 229, 255, .22);
+  border-radius: var(--radius-card); box-shadow: 0 0 22px rgba(0, 229, 255, .07);
+}
+#app.library .rec b { font-size: 18px; }
+#app.library .rec .row { justify-content: flex-start; }
