@@ -21,6 +21,11 @@ const STABLE_FRAMES = 3;   // a pose must last this many frames before it counts
 // Works for left or right hand and any hand rotation, except thumbs up/down which use screen "up/down".
 const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
+// Adds the "Tilt" suffix when the hand is rotated ~90° anticlockwise.
+// Returns null in the in-between angles so a half-rotated hand doesn't flicker between notes.
+const withTilt = (base, upright, tilted) =>
+  !base ? null : upright ? base : tilted ? base + "Tilt" : null;
+
 function recognizeGesture(p) {
   const palm = d(p[0], p[9]) || 1;                       // wrist -> middle knuckle = hand size
 
@@ -28,34 +33,31 @@ function recognizeGesture(p) {
   const up = (tip, pip) => d(p[0], p[tip]) > d(p[0], p[pip]) * 1.1;
   const index = up(8, 6), middle = up(12, 10), ring = up(16, 14), pinky = up(20, 18);
 
-  // Thumb is "out" when its tip is away from the index knuckle and the pinky side of the palm.
   const thumb = d(p[4], p[5]) / palm > 0.55 && d(p[4], p[17]) > d(p[3], p[17]);
   const thumbDy = (p[4].y - p[2].y) / palm;              // negative = pointing up on screen
-  const pinch = d(p[4], p[8]) / palm < 0.35;             // thumb tip touching index tip
-
-  if (pinch && middle && ring && pinky) return "okSign";
-
   const count = [index, middle, ring, pinky].filter(Boolean).length;
+
+  // Hand direction: 0° = fingers up, +90° = fingers pointing to the LEFT of the mirrored screen
+  // (i.e. hand rotated anticlockwise from your point of view).
+  const angle = Math.atan2(p[9].x - p[0].x, -(p[9].y - p[0].y)) * 180 / Math.PI;
+  const upright = Math.abs(angle) < 40;
+  const tilted = angle > 50 && angle < 130;
 
   if (!thumb) {
     if (count === 0) return "fist";
-    if (index && !middle && !ring && !pinky) return "oneFinger";
-    if (index && middle && !ring && !pinky) return "twoFingers";
-    if (index && middle && ring && !pinky) return "threeFingers";
-    if (count === 4) return "fourFingers";
-    if (index && pinky && !middle && !ring) return "rockSign";
-    return null;
+    let base = null;
+    if (index && !middle && !ring && !pinky) base = "oneFinger";
+    else if (index && middle && !ring && !pinky) base = "twoFingers";
+    else if (index && middle && ring && !pinky) base = "threeFingers";
+    else if (count === 4) base = "fourFingers";
+    return withTilt(base, upright, tilted);
   }
 
-  if (count === 4) return "fiveFingers";
+  if (count === 4) return withTilt("fiveFingers", upright, tilted);
   if (count === 0) {
     if (thumbDy < -0.45) return "thumbUp";
     if (thumbDy > 0.45) return "thumbDown";
-    return null;
   }
-  if (pinky && !index && !middle && !ring) return "shakaSign";
-  if (index && middle && !ring && !pinky) return "thumbIndexMiddle";
-  if (index && pinky && !middle && !ring) return "loveSign";
   return null;
 }
 
