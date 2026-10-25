@@ -11,14 +11,16 @@
      Text is filled into any element with data-gp-bind="level|points|combo|streak|status|note|chordNow|leftTxt|rightTxt|last".
      Any element with data-gp-action="start|free|learn|game|lib|record|quit|again|next|menu" becomes that button.
      JS events and controls: window.GesturePiano (see bottom of file). */
-  :root {
-    --color-bg: #10303a; --color-panel: #17414d; --color-panel-2: #1d5260;
-    --color-text: #f4efe2; --color-muted: #9fc3c9; --color-accent: #e85d75;
-    --color-note-c: #ef476f; --color-note-d: #ff9f1c; --color-note-e: #06d6a0; --color-note-f: #38a8e0; --color-note-g: #9b7be8; --color-note-a: #f15bb5; --color-note-b: #00bbf9;
-    --color-good: #06d6a0; --color-bad: #ef476f; --color-gold: #ffd166;
-    --radius-card: 12px; --radius-btn: 10px; --space-page: 24px;
-    --font-ui: "Segoe UI", system-ui, -apple-system, sans-serif;
-  }
+:root {
+  --color-bg: #05070f; --color-panel: #0c1226; --color-panel-2: #141c3a;
+  --color-text: #e6f1ff; --color-muted: #7f93c4;
+  --color-accent: #7c4dff;   /* electric violet */
+  --color-neon: #00e5ff;     /* neon cyan, used for glows */
+  --color-note-c: #ff3d6e; --color-note-d: #ff9f1c; --color-note-e: #00f5a0; --color-note-f: #38bdf8; --color-note-g: #a78bfa; --color-note-a: #ff4fd8; --color-note-b: #22d3ee;
+  --color-good: #00f5a0; --color-bad: #ff3d6e; --color-gold: #ffd84d;
+  --radius-card: 12px; --radius-btn: 10px; --space-page: 24px;
+  --font-ui: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; background: var(--color-bg); color: var(--color-text); font-family: var(--font-ui); }
   header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px var(--space-page); }
@@ -107,6 +109,8 @@
   dialog { background: var(--color-panel); color: var(--color-text); border: 0; border-radius: 16px; padding: 16px; max-width: 94vw; }
   dialog::backdrop { background: rgba(8,24,29,.85); } dialog video { max-width: 100%; max-height: 70vh; display: block; margin-bottom: 10px; }
   [hidden] { display: none !important; }
+  .song-select { flex: 1; min-width: 0; text-overflow: ellipsis; }   /* long names get "..." instead of overflowing */
+select option { background: var(--color-panel); color: var(--color-text); }
   /* ----- Top navigation bar ----- */
 .site-nav {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
@@ -153,7 +157,82 @@
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=Inria+Sans:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<style>
+  .nav-profile.active .avatar { box-shadow: 0 0 0 2px var(--color-neon), 0 0 14px var(--color-neon); }
+/* ===== Lesson screen layout cleanup ===== */
+html { background: #05070f; }
+
+/* 1. Let the row grow with the side panel, so nothing spills onto the note bar */
+#app main,
+#app.lesson main { height: auto; min-height: 0; align-items: flex-start; }
+#panel,
+#app.lesson #panel { height: auto; max-height: none; min-height: 0; overflow: visible; }
+#panel > * { min-width: 0; }
+#timeline { position: relative; clear: both; margin-top: 20px; z-index: 1; }
+
+/* 2. The two "current gesture" cards: stack the contents neatly */
+#panel .gpair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; }
+#panel .gcard {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 6px; height: auto; min-width: 0; min-height: 0; padding: 12px 8px;
+  overflow: hidden; text-align: center;
+}
+#panel .gcard > div { position: static; max-width: 100%; }
+#panel .gcard svg { width: 72px; height: 86px; flex: none; position: static; }
+#panel .gname,
+#panel .gcard #target { font-size: clamp(30px, 3.2vw, 48px); line-height: 1.1; margin: 0; }
+#panel .gwho { font-size: 14px; }
+#panel .gtxt { font-size: 15px; line-height: 1.2; }
+
+/* 3. Points and combo: keep them inside their card */
+#panel .live-points { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+#panel .live-points .combo { flex: none; }
+
+/* 4. "Target note" label: move it away from the C key */
+#stage .gesture-indicator { position: absolute; left: 30px; top: 64px; right: auto; bottom: auto; z-index: 3; }
+/* ===== Profile page ===== */
+.pf { max-width: 960px; margin: 0 auto; padding: 28px 24px 48px; display: flex; flex-direction: column; gap: 18px; }
+.pf h1, .pf h2 { margin: 0; }
+.pf h2 { font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: var(--color-muted); margin-bottom: 12px; }
+.pf-label { margin: 0 0 4px; font-size: 12px; letter-spacing: .2em; color: var(--color-neon); }
+.pf-sub { margin: 4px 0 0; color: var(--color-muted); font-size: 14px; }
+.pf-hero, .pf-card, .pf-stat { background: rgba(12,18,38,.78); border: 1px solid rgba(0,229,255,.22); border-radius: var(--radius-card); box-shadow: 0 0 22px rgba(0,229,255,.07); }
+.pf-hero { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; padding: 22px; }
+.pf-avatar { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+  font: 800 36px "Orbitron", var(--font-ui); background: linear-gradient(135deg, var(--color-accent), var(--color-neon)); box-shadow: 0 0 24px rgba(0,229,255,.45); }
+.pf-who { flex: 1 1 220px; min-width: 0; }
+.pf-who h1 { font-size: 30px; overflow-wrap: anywhere; }
+.pf-level { flex: 1 1 220px; }
+.pf-level-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; letter-spacing: .2em; color: var(--color-muted); }
+.pf-level-top b { font: 800 30px "Orbitron", var(--font-ui); color: var(--color-text); letter-spacing: 0; }
+.pf-xp { height: 10px; border-radius: 6px; background: #060a18; overflow: hidden; margin: 8px 0 4px; }
+#pfXpFill { height: 100%; width: 0; background: linear-gradient(90deg, var(--color-neon), var(--color-accent)); box-shadow: 0 0 10px var(--color-neon); transition: width .4s; }
+.pf-level small { color: var(--color-muted); }
+.pf-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.pf-stat { padding: 16px; }
+.pf-stat b { display: block; font: 800 28px "Orbitron", var(--font-ui); }
+.pf-stat span { color: var(--color-muted); font-size: 13px; }
+.pf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+.pf-card { padding: 18px 20px; }
+.pf-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pf-list li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; background: var(--color-panel-2); border-radius: var(--radius-btn); }
+.pf-list li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-list li b { color: var(--color-gold); }
+.pf-list li.pf-empty { background: none; padding-left: 0; }
+.pf-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.pf-chip { padding: 6px 12px; border-radius: 999px; background: var(--color-panel-2); border: 1px solid rgba(0,229,255,.25); font-size: 14px; }
+.pf-empty { color: var(--color-muted); font-size: 14px; }
+.pf-form label { display: block; font-size: 14px; color: var(--color-muted); margin-bottom: 6px; }
+.pf-row { display: flex; gap: 8px; }
+.pf-row input { flex: 1; min-width: 0; font: inherit; color: var(--color-text); background: var(--color-panel-2); border: 1px solid rgba(0,229,255,.25); border-radius: var(--radius-btn); padding: 11px 14px; }
+.pf-msg { min-height: 20px; margin: 8px 0 12px; font-size: 14px; color: var(--color-good); }
+
+/* the Profile link in the top bar lights up when you're on the profile page */
+.nav-profile { padding: 4px 14px 4px 4px; border-radius: 999px; border: 1px solid transparent; }
+.nav-profile.active { border-color: var(--color-neon); background: rgba(0,229,255,.08); box-shadow: 0 0 14px rgba(0,229,255,.45); }
+</style>
 </head>
 <body>
   <div id="signin">
@@ -350,22 +429,54 @@
   <iframe id="gameFrame" title="Note Drop game" allow="camera; microphone"></iframe>
 </div>
 <div id="profile" hidden>
-  <div class="profile-page">
-    <div class="profile-card">
-      <div class="avatar avatar-lg">M</div>
-      <div>
-        <p class="tech-label">PROFILE</p>
-        <h1>Your profile</h1>
-        <p class="profile-sub">Signed in to MoveTune</p>
+  <div class="pf">
+
+    <section class="pf-hero">
+      <div class="pf-avatar" id="pfAvatar">M</div>
+      <div class="pf-who">
+        <p class="pf-label">PROFILE</p>
+        <h1 id="pfName">Your profile</h1>
+        <p class="pf-sub" id="pfEmail">Signed in to MoveTune</p>
+        <p class="pf-sub" id="pfSince"></p>
       </div>
-    </div>
-    <div class="profile-stats">
-      <div class="stat-box"><b data-gp-bind="level">1</b><span>Level</span></div>
-      <div class="stat-box"><b>7</b><span>Day streak</span></div>
-      <div class="stat-box"><b>0</b><span>Songs learned</span></div>
-    </div>
-    <button type="button" id="signOutBtn" class="button button-secondary">Sign out</button>
-    
+      <div class="pf-level">
+        <div class="pf-level-top"><span>LEVEL</span><b id="pfLevel">1</b></div>
+        <div class="pf-xp"><div id="pfXpFill"></div></div>
+        <small id="pfXpText">0 / 1000 XP</small>
+      </div>
+    </section>
+
+    <section class="pf-stats">
+      <div class="pf-stat"><b id="pfPoints">0</b><span>Total points</span></div>
+      <div class="pf-stat"><b id="pfLearned">0</b><span>Songs learned</span></div>
+      <div class="pf-stat"><b id="pfStars">0</b><span>Stars earned</span></div>
+      <div class="pf-stat"><b id="pfFavs">0</b><span>Favourites</span></div>
+    </section>
+
+    <section class="pf-grid">
+      <div class="pf-card">
+        <h2>Best scores</h2>
+        <ol id="pfBest" class="pf-list"></ol>
+      </div>
+      <div class="pf-card">
+        <h2>Favourite songs</h2>
+        <div id="pfFavList" class="pf-chips"></div>
+      </div>
+    </section>
+
+    <section class="pf-card">
+      <h2>Account</h2>
+      <form id="pfForm" class="pf-form">
+        <label for="pfUsername">Display name</label>
+        <div class="pf-row">
+          <input id="pfUsername" type="text" maxlength="30" placeholder="Your name">
+          <button type="submit" class="primary">Save</button>
+        </div>
+        <p id="pfMsg" class="pf-msg" role="status"></p>
+      </form>
+      <button type="button" id="signOutBtn">Sign out</button>
+    </section>
+
   </div>
 </div>
 <div id="app" hidden>
@@ -451,7 +562,11 @@
         <div class="how" id="pickHelp"></div>
         <label class="muted"><input type="checkbox" id="favOnly"> Show favourites only</label>
         <label class="muted"><input type="checkbox" id="autoRec" checked> Save a video of my playing</label>
-        <div class="list" id="songList"></div>
+        <div class="songrow">
+  <select id="songSelect" class="song-select" aria-label="Choose a song"></select>
+  <button type="button" class="fav" id="favBtn" aria-label="Favourite this song" aria-pressed="false">☆</button>
+</div>
+<button type="button" class="primary" id="songGo" style="margin-top:8px">Choose this song</button>
       </div>
       <div id="songPrep" hidden>
         <h2 id="prepTitle"></h2>
@@ -505,27 +620,16 @@
     </div>
  
     <div class="card" id="gestureMap" data-component="gesture-map">
-      <div class="how"><b>Gesture map</b>: copy these hand shapes</div>
-      <div class="muted">Right hand = the 12 notes</div>
-      <div class="gmap" id="gmapNotes"></div>
-      <div class="muted" style="margin-top:12px">Left hand = chords</div>
-      <div class="gmap" id="gmapChords"></div>
-    </div>
+  <details id="gestureDetails" open>
+    <summary class="how"><b>Gesture map</b>: copy these hand shapes</summary>
+    <div class="muted">Right hand = the 12 notes</div>
+    <div class="gmap" id="gmapNotes"></div>
+    <div class="muted" style="margin-top:12px">Left hand = chords</div>
+    <div class="gmap" id="gmapChords"></div>
+  </details>
+</div>
  
-    <div class="card muted" id="scoreHelp">
-      Game scoring: 100 points per note times your multiplier, plus up to 50 for speed. The multiplier grows every 3 notes in a row (max x5). A wrong note or chord resets it. A perfect song earns 500 extra. Learn mode has no score or penalties.
-    </div>
-  </div>
-</main>
-<section id="timeline" data-component="note-timeline" hidden>
-  <div class="phrase-progress">
-    <div class="phrase-title">
-      <p class="tech-label grey" data-gp-bind="stepLabel">NOTE 1 OF 1</p>
-      <p class="tech-label" data-gp-bind="progressPct">0%</p>
-    </div>
-    <div class="timeline-key"><span class="hit-key">Hit</span><span class="up-key">Upcoming</span></div>
-  </div>
-  <div id="notes"></div>
+    
 </section>
  
 <div id="overlay" data-component="result-dialog" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
@@ -595,7 +699,7 @@ for (const g of ["oneFinger", "twoFingers", "threeFingers", "fourFingers", "five
   HANDS[g + "Tilt"] = { ...HANDS[g], tilt: 1 };
 }
 function handSVG(f) {
-  const on = "#f4efe2", off = "#b8ad95", X = { i: 23, m: 36.5, r: 50, p: 63.5 }, L = { i: 44, m: 50, r: 45, p: 36 };
+  const on = "#bff6ff", off = "#3d4c80", X = { i: 23, m: 36.5, r: 50, p: 63.5 }, L = { i: 44, m: 50, r: 45, p: 36 };
   let back = "", front = "";
   for (const k of ["i", "m", "r", "p"]) {
     if (f[k]) back += `<rect x="${X[k]}" y="${64 - L[k]}" width="12" height="${L[k] + 10}" rx="6" fill="${on}"/>`;
@@ -861,26 +965,44 @@ $("viewer").onclose = () => { const v = $("viewVid"); v.pause(); if (v.src) URL.
  
 // ---------- songs: list, favourites, chord briefing, play ----------
 function renderSongs() {
-  const el = $("songList"); el.innerHTML = "";
+  const sel = $("songSelect");
+  const kept = sel.value;                      // remember what was picked, so the choice doesn't jump around
   $("pickHelp").textContent = mode === "learn" ? "Pick a song to learn. Hints show every note and chord, with no score." : "Pick a song. Earn a star to unlock the next practice drill.";
   const favOnly = $("favOnly").checked;
+  sel.innerHTML = "";
   SONGS.forEach((sg, i) => {
     const fav = save.favs.includes(sg.title);
     if (favOnly && !fav) return;
     const ok = unlocked(sg), s = save.stars[sg.title] || 0;
-    const row = document.createElement("div"); row.className = "songrow";
-    const b = document.createElement("button");
-    b.className = "song" + (ok ? "" : " locked"); b.disabled = !ok;
     const meta = mode === "learn" ? (save.learned[sg.title] ? "Learned" : "") : `${"★".repeat(s)}${"☆".repeat(3 - s)} Best ${save.best[sg.title] || 0}`;
-    b.innerHTML = `<span>${ok ? "" : "Locked: "}${sg.title}${sg.pop ? "" : " (drill)"}</span><span class="meta">${meta}</span>`;
-    b.onclick = () => showPrep(i);
-    const f = document.createElement("button");
-    f.className = "fav"; f.textContent = fav ? "★" : "☆"; f.setAttribute("aria-pressed", fav); f.setAttribute("aria-label", "Favourite " + sg.title);
-    f.onclick = () => { save.favs = fav ? save.favs.filter((t) => t !== sg.title) : [...save.favs, sg.title]; persist(); renderSongs(); };
-    row.append(b, f); el.appendChild(row);
+    const o = document.createElement("option");
+    o.value = i;
+    o.disabled = !ok;                           // locked songs can't be chosen
+    o.textContent = `${fav ? "★ " : ""}${ok ? "" : "Locked: "}${sg.title}${sg.pop ? "" : " (drill)"}${meta ? "  -  " + meta : ""}`;
+    sel.appendChild(o);
   });
-  if (!el.children.length) el.innerHTML = `<div class="muted">No favourites yet. Tap the star next to a song.</div>`;
+  if (!sel.options.length) sel.innerHTML = `<option value="">No favourites yet</option>`;
+  if ([...sel.options].some((o) => o.value === kept && !o.disabled)) sel.value = kept;
+  updateFavBtn();
 }
+
+// the song currently chosen in the dropdown (or null)
+function pickedSong() { const v = $("songSelect").value; return v === "" ? null : SONGS[Number(v)]; }
+
+function updateFavBtn() {
+  const sg = pickedSong();
+  const fav = !!sg && save.favs.includes(sg.title);
+  $("favBtn").textContent = fav ? "★" : "☆";
+  $("favBtn").setAttribute("aria-pressed", fav);
+  $("favBtn").disabled = !sg;
+}
+$("songSelect").onchange = updateFavBtn;
+$("favBtn").onclick = () => {
+  const sg = pickedSong(); if (!sg) return;
+  save.favs = save.favs.includes(sg.title) ? save.favs.filter((t) => t !== sg.title) : [...save.favs, sg.title];
+  persist(); renderSongs();
+};
+$("songGo").onclick = () => { const v = $("songSelect").value; if (v !== "") showPrep(Number(v)); };
 $("favOnly").onchange = renderSongs;
  
 function showPrep(i) {
@@ -1007,7 +1129,7 @@ function processResult(res, v) {
     const raw = labels[i]?.[0]?.categoryName;
     const side = FLIP_HANDS ? (raw === "Left" ? "Right" : "Left") : raw;
     if (side === "Left") left = countFingers(lm); else { right = countFingers(lm); gesture = classifyRight(lm); }
-    ctx.fillStyle = side === "Left" ? "#38a8e0" : "#ef476f";
+    ctx.fillStyle = side === "Left" ? "#00e5ff" : "#ff3dcb";
     lm.forEach((p) => { ctx.beginPath(); ctx.arc(p.x * canvas.width, p.y * canvas.height, 5, 0, 7); ctx.fill(); });
   });
   const chord = left === null ? null : CH[left];
@@ -1096,8 +1218,18 @@ const app = document.getElementById("app");
 const profile = document.getElementById("profile");
 const siteNav = document.getElementById("siteNav");
 
-function setActive(page) {   // highlights the current page in the header
-  document.querySelectorAll(".nav-links a").forEach((a) => a.classList.toggle("active", a.dataset.page === page));
+// Works out which page is really showing, then lights that link. It ignores the argument on purpose.
+function currentPage() {
+  const g = document.getElementById("gameScreen");
+  if (g && !g.hidden) return "game";
+  if (!profile.hidden) return "profile";
+  if (!home.hidden) return "home";
+  if (!app.hidden) return window.GesturePiano ? window.GesturePiano.state.mode : "free";   // free, learn, game or lib
+  return "home";
+}
+function setActive() {
+  const page = currentPage();
+  document.querySelectorAll(".nav-links a, .nav-profile").forEach((a) => a.classList.toggle("active", a.dataset.page === page));
 }
  
 const gameScreen = document.getElementById("gameScreen");
@@ -1139,6 +1271,7 @@ function openHome() {
   setActive("home");
 }
 function openProfile() {
+  renderProfile();
   closeGame();
   app.hidden = true;
   home.hidden = true;
@@ -1149,11 +1282,15 @@ document.querySelectorAll("[data-open]").forEach((el) => {
   el.addEventListener("click", (e) => { e.preventDefault(); openApp(el.dataset.open, el.dataset.song); });
 });
 document.getElementById("homeBtn").addEventListener("click", openHome);
+// Stop any song first, but never let a problem there block the navigation
+async function stopSongSafely() {
+  try { await window.GesturePiano.actions.quit(); } catch (err) { console.warn(err); }
+}
 document.querySelectorAll('[data-page="home"]').forEach((a) =>
-  a.addEventListener("click", async (e) => { e.preventDefault(); await window.GesturePiano.actions.quit(); openHome(); })
+  a.addEventListener("click", async (e) => { e.preventDefault(); await stopSongSafely(); openHome(); })
 );
 document.querySelector(".nav-profile").addEventListener("click", async (e) => {
-  e.preventDefault(); await window.GesturePiano.actions.quit(); openProfile();
+  e.preventDefault(); await stopSongSafely(); openProfile();
 });
 
 // ----- Supabase -----
@@ -1198,6 +1335,7 @@ function enterApp() {
   home.hidden = false;
   siteNav.hidden = false;
   setActive("home");
+  renderProfile();
 }
 
 form.addEventListener("submit", async (e) => {
@@ -1265,6 +1403,77 @@ miniHeights.forEach((h, i) => {
 document.getElementById("lessonBack").addEventListener("click", async () => {
   await window.GesturePiano.actions.quit();
   openHome();
+});
+// Keep the top bar in sync when the mode changes from the tabs inside the app
+window.addEventListener("load", () => {
+  // 1. Re-check whenever the mode tabs change (Free play / Learn / Game / Library)
+  if (window.GesturePiano) window.GesturePiano.on("mode", () => setActive());
+
+  // 2. Re-check whenever any screen is shown or hidden
+  const watcher = new MutationObserver(() => setActive());
+  ["home", "app", "profile", "gameScreen"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) watcher.observe(el, { attributes: true, attributeFilter: ["hidden"] });
+  });
+
+  setActive();
+});
+// ----- Profile page -----
+function esc(t) {
+  return String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function readSave() {
+  const empty = { best: {}, stars: {}, learned: {}, favs: [], total: 0 };
+  try { return { ...empty, ...JSON.parse(localStorage.getItem("gesturePianoSave")) }; } catch (e) { return empty; }
+}
+async function renderProfile() {
+  const $p = (id) => document.getElementById(id);
+  const s = readSave();
+  const level = Math.floor(s.total / 1000) + 1, xp = s.total % 1000;
+
+  $p("pfLevel").textContent = level;
+  $p("pfXpFill").style.width = xp / 10 + "%";
+  $p("pfXpText").textContent = `${xp} / 1000 XP to level ${level + 1}`;
+  $p("pfPoints").textContent = s.total.toLocaleString();
+  $p("pfLearned").textContent = Object.values(s.learned).filter(Boolean).length;
+  $p("pfStars").textContent = Object.values(s.stars).reduce((a, b) => a + b, 0);
+  $p("pfFavs").textContent = s.favs.length;
+
+  const best = Object.entries(s.best).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  $p("pfBest").innerHTML = best.length
+    ? best.map(([t, v]) => `<li><span>${esc(t)}</span><b>${v}</b></li>`).join("")
+    : `<li class="pf-empty">No scores yet.</li>`;
+  $p("pfFavList").innerHTML = s.favs.length
+    ? s.favs.map((t) => `<span class="pf-chip">★ ${esc(t)}</span>`).join("")
+    : `<span class="pf-empty">No favourites yet. Press the ☆ next to a song in Learn.</span>`;
+
+  // name, email and join date come from the sign-in service
+  try {
+    const { data } = await sb.auth.getSession();
+    const u = data && data.session && data.session.user;
+    if (u) {
+      const name = (u.user_metadata && u.user_metadata.username) || (u.email || "").split("@")[0] || "Musician";
+      const initial = (name[0] || "M").toUpperCase();
+      $p("pfName").textContent = name;
+      $p("pfEmail").textContent = u.email || "";
+      $p("pfAvatar").textContent = initial;
+      $p("pfUsername").value = name;
+      $p("pfSince").textContent = "Member since " + new Date(u.created_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+      document.querySelectorAll(".nav-profile .avatar").forEach((a) => (a.textContent = initial));
+    }
+  } catch (err) { console.warn(err); }
+}
+
+document.getElementById("pfForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("pfMsg");
+  const name = document.getElementById("pfUsername").value.trim();
+  if (!name) { msg.style.color = "#ff8a8a"; msg.textContent = "Please type a name."; return; }
+  msg.style.color = ""; msg.textContent = "Saving…";
+  const { error } = await sb.auth.updateUser({ data: { username: name } });
+  if (error) { msg.style.color = "#ff8a8a"; msg.textContent = error.message; return; }
+  msg.textContent = "Saved!";
+  renderProfile();
 });
 </script>
 <script>
